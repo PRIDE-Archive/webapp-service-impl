@@ -1,0 +1,30 @@
+package uk.ac.ebi.pride.archive.web.service.model.viewer;
+
+/**
+ * @author Florian Reisinger
+ *         Date: 07/05/14
+ * @since $version
+ */
+public class PeptideMatch extends Peptide {
+
+    // corresponds to a 'Peptide' in Proteomes
+
+    private int position;
+    private int uniqueness;
+
+    public int getPosition() {
+        return position;
+    }
+
+    public void setPosition(int position) {
+        this.position = position;
+    }
+
+    public int getUniqueness() {
+        return uniqueness;
+    }
+
+    public void setUniqueness(int uniqueness) {
+        this.uniqueness = uniqueness;
+    }
+}
