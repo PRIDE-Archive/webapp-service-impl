@@ -1,5 +1,6 @@
 package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -15,9 +16,9 @@ public class Peptide {
     private boolean symbolic;
     private String sequence;
     private int taxonID;
-    private List<ModifiedLocation> modifiedLocations;
-    private List<String> tissues;
-    private List<String> assays;
+    private List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>();
+    private List<String> tissues = new ArrayList<String>(0);
+    private List<String> assays = new ArrayList<String>(1);
 
     public String getId() {
         return id;

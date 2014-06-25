@@ -15,10 +15,10 @@ import java.util.List;
  */
 public class DummyDataCreator {
 
-    public static final String assayAccession = "12345";
-
-    public static final String prot1Accession = "P02768";
-    private static final String prot1Sequence =
+    public static final String ASSAY_ACCESSION = "12345";
+    public static final String PROT_1_ACCESSION = "P02768";
+    public static final String PROTEIN_1_ID = ASSAY_ACCESSION + "__" + PROT_1_ACCESSION;
+    private static final String PROT_1_SEQUENCE =
             "MKWVTFISLLFLFSSAYSRGVFRRDAHKSEVAHRFKDLGEENFKALVLIAFAQYLQQCPF" +
             "EDHVKLVNEVTEFAKTCVADESAENCDKSLHTLFGDKLCTVATLRETYGEMADCCAKQEP" +
             "ERNECFLQHKDDNPNLPRLVRPEVDVMCTAFHDNEETFLKKYLYEIARRHPYFYAPELLF" +
@@ -30,27 +30,25 @@ public class DummyDataCreator {
             "LNQLCVLHEKTPVSDRVTKCCTESLVNRRPCFSALEVDETYVPKEFNAETFTFHADICTL" +
             "SEKERQIKKQTALVELVKHKPKATKEQLKAVMDDFAAFVEKCCKADDKETCFAEEGKKLV" +
             "AASQAALGL";
-    private static final String prot1Desc = "Some default description, ideally containing the gene name....";
-    private static final int prot1TaxId = 9606;
+    private static final String PROT_1_DESC = "Some default description, ideally containing the gene name....";
+    private static final int PROT_1_TAXID = 9606;
 
-    private static final String pep1Sequence = "TCVADESAENCDKSLHTLFGD";
-    private static final String pep2Sequence = "DVFLGMFLYEYARRHPDYSVVLLLRLAK";
-    private static final String pep3Sequence = "CCAAADNHECYAK";
-    private static final String pep4Sequence = "DVFLGMFLYEYARRHPDYSVVLLLRLAK";
-    private static final String pep5Sequence = "DVFLGMFLYEYARRHPDYSVVLLLRLAK";
-    private static final ModifiedLocation pep1Mod = new ModifiedLocation("OXIDATION", 5);
-    private static final ModifiedLocation pep2Mod = new ModifiedLocation("PHOSPHORYLATION", 7);
-    private static final int prot1Pep1Pos = 76;
-    private static final int prot1Pep2Pos = 348;
-    private static final int prot1Pep3Pos = 384;
-    private static final int noProtPepPos = -1;
+    private static final String PEP_1_SEQUENCE = "TCVADESAENCDKSLHTLFGD";
+    private static final String PEP_2_SEQUENCE = "DVFLGMFLYEYARRHPDYSVVLLLRLAK";
+    private static final String PEP_3_SEQUENCE = "CCAAADNHECYAK";
+    private static final ModifiedLocation PEP_1_MOD = new ModifiedLocation("OXIDATION", 5);
+    private static final ModifiedLocation PEP_2_MOD = new ModifiedLocation("PHOSPHORYLATION", 7);
+    private static final int PROT_1_PEP_1_POS = 76;
+    private static final int PROT_1_PEP_2_POS = 348;
+    private static final int PROT_1_PEP_3_POS = 384;
+    private static final int NO_PROT_PEP_POS = -1;
 
-    private static final List<String> tissues1 = new ArrayList<String>(0);
-    private static final List<String> tissues2;
+    private static final List<String> TISSUES_1 = new ArrayList<String>(0);
+    private static final List<String> TISSUES_2;
     static {
-        tissues2 = new ArrayList<String>(2);
-        tissues2.add("brain");
-        tissues2.add("heart");
+        TISSUES_2 = new ArrayList<String>(2);
+        TISSUES_2.add("brain");
+        TISSUES_2.add("heart");
     }
 
 
@@ -60,59 +58,68 @@ public class DummyDataCreator {
     public static Protein createDummyProtein1() {
         Protein protein = new Protein();
 
-        protein.setSequence(prot1Sequence);
-        protein.setId(assayAccession + "__" + prot1Accession);
-        protein.setAccession(prot1Accession);
-        protein.setDescription(prot1Desc);
+        protein.setSequence(PROT_1_SEQUENCE);
+        protein.setId(ASSAY_ACCESSION + "__" + PROT_1_ACCESSION);
+        protein.setAccession(PROT_1_ACCESSION);
+        protein.setDescription(PROT_1_DESC);
 
-        List<PeptideMatch> list = new ArrayList<PeptideMatch>(2);
-        list.add(createDummyPeptide(prot1Accession, pep1Sequence, prot1Pep1Pos, pep1Mod));
-        list.add(createDummyPeptide(prot1Accession, pep2Sequence, prot1Pep2Pos, pep2Mod));
-
-        // create a peptide that does not match the protein sequence
-        PeptideMatch pm = createDummyPeptide(prot1Accession, pep3Sequence, prot1Pep3Pos, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-        // create a peptide that does not have a start position (pos = 0)
-        pm = createDummyPeptide(prot1Accession, pep3Sequence, 0, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-        // create a peptide that has a negative start position
-        pm = createDummyPeptide(prot1Accession, pep4Sequence, noProtPepPos, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-        // create a peptide that has a start position beyond the protein length
-        pm = createDummyPeptide(prot1Accession, pep5Sequence, prot1Sequence.length()+100, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
+        List<PeptideMatch> list = createDummyPeptideList();
 
 
         protein.setPeptides(list);
 
         List<ModifiedLocation> prot1Modifications = new ArrayList<ModifiedLocation>(2);
-        prot1Modifications.add(new ModifiedLocation(pep1Mod.getModification(), prot1Pep1Pos + pep1Mod.getPosition() - 1));
-        prot1Modifications.add(new ModifiedLocation(pep2Mod.getModification(), prot1Pep2Pos + pep2Mod.getPosition() - 1));
+        prot1Modifications.add(new ModifiedLocation(PEP_1_MOD.getModification(), PROT_1_PEP_1_POS + PEP_1_MOD.getPosition() - 1));
+        prot1Modifications.add(new ModifiedLocation(PEP_2_MOD.getModification(), PROT_1_PEP_2_POS + PEP_2_MOD.getPosition() - 1));
         protein.setModifiedLocations(prot1Modifications);
 
-        protein.setTaxonID(prot1TaxId);
-        protein.setTissues(tissues2);
+        protein.setTaxonID(PROT_1_TAXID);
+        protein.setTissues(TISSUES_2);
 
         return protein;
     }
 
-    public static PeptideMatch createDummyPeptide(String proteinAccession, String sequence, int position, ModifiedLocation mod) {
+    public static <T extends Peptide> List<T> createDummyPeptideList() {
+        List<T> list = new ArrayList<T>();
+
+        Peptide peptide = new Peptide();
+        list.add((T)createDummyPeptide(PROT_1_ACCESSION, PEP_1_SEQUENCE, PROT_1_PEP_1_POS, PEP_1_MOD));
+        list.add((T)createDummyPeptide(PROT_1_ACCESSION, PEP_2_SEQUENCE, PROT_1_PEP_2_POS, PEP_2_MOD));
+
+        // create peptide that does not match the protein sequence
+        PeptideMatch pm = createDummyPeptide(PROT_1_ACCESSION, PEP_3_SEQUENCE, PROT_1_PEP_3_POS, PEP_2_MOD);
+        pm.setUniqueness(-1);
+        list.add((T)pm);
+        // create a peptide that does not have a start position (pos = 0)
+        pm = createDummyPeptide(PROT_1_ACCESSION, PEP_3_SEQUENCE, 0, PEP_2_MOD);
+        pm.setUniqueness(-1);
+        list.add((T)pm);
+        // create a peptide that has a negative start position
+        pm = createDummyPeptide(PROT_1_ACCESSION, PEP_2_SEQUENCE, NO_PROT_PEP_POS, PEP_2_MOD);
+        pm.setUniqueness(-1);
+        list.add((T)pm);
+        // create a peptide that has a start position beyond the protein length
+        pm = createDummyPeptide(PROT_1_ACCESSION, PEP_2_SEQUENCE, PROT_1_SEQUENCE.length()+100, PEP_2_MOD);
+        pm.setUniqueness(-1);
+        list.add((T)pm);
+
+        return list;
+    }
+
+
+    private static PeptideMatch createDummyPeptide(String proteinAccession, String sequence, int position, ModifiedLocation mod) {
 
         PeptideMatch peptide = new PeptideMatch();
-        peptide.setId(assayAccession + "__" + proteinAccession + "__" + sequence);
+        peptide.setId(ASSAY_ACCESSION + "__" + proteinAccession + "__" + sequence);
         peptide.setSequence(sequence);
         peptide.setPosition(position);
         peptide.setUniqueness(1);
         peptide.setSymbolic(false);
-        peptide.setTaxonID(prot1TaxId);
-        peptide.setTissues(tissues1);
+        peptide.setTaxonID(PROT_1_TAXID);
+        peptide.setTissues(TISSUES_1);
 
         List<String> assays = new ArrayList<String>();
-        assays.add(assayAccession);
+        assays.add(ASSAY_ACCESSION);
         peptide.setAssays(assays);
 
         List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(1);
@@ -120,32 +127,6 @@ public class DummyDataCreator {
         peptide.setModifiedLocations(modifiedLocations);
 
         return peptide;
-    }
-
-    public static List<Peptide> createDummyPeptideList() {
-        List<Peptide> list = new ArrayList<Peptide>();
-
-        list.add(createDummyPeptide(prot1Accession, pep1Sequence, prot1Pep1Pos, pep1Mod));
-        list.add(createDummyPeptide(prot1Accession, pep2Sequence, prot1Pep2Pos, pep2Mod));
-
-        // create peptide that does not match the protein sequence
-        PeptideMatch pm = createDummyPeptide(prot1Accession, pep3Sequence, prot1Pep3Pos, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-        // create a peptide that does not have a start position (pos = 0)
-        pm = createDummyPeptide(prot1Accession, pep3Sequence, 0, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-        // create a peptide that has a negative start position
-        pm = createDummyPeptide(prot1Accession, pep4Sequence, noProtPepPos, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-        // create a peptide that has a start position beyond the protein length
-        pm = createDummyPeptide(prot1Accession, pep5Sequence, prot1Sequence.length()+100, pep2Mod);
-        pm.setUniqueness(-1);
-        list.add(pm);
-
-        return list;
     }
 
 }

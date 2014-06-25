@@ -11,6 +11,10 @@ public class PeptideList {
 
     private List<Peptide> peptideList;
 
+    public PeptideList(List<Peptide> peptideList) {
+        this.peptideList = peptideList;
+    }
+
     public List<Peptide> getPeptideList() {
         return peptideList;
     }

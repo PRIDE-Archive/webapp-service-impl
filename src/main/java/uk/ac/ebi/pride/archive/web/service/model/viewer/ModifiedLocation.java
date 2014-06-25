@@ -1,5 +1,7 @@
 package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
+import java.util.Comparator;
+
 /**
  * @author Florian Reisinger
  * @since 1.0.1
@@ -30,5 +32,12 @@ public class ModifiedLocation {
 
     public void setModification(String modification) {
         this.modification = modification;
+    }
+
+    public static class ModifiedLocationPositionComparator implements Comparator<ModifiedLocation> {
+        @Override
+        public int compare(ModifiedLocation o1, ModifiedLocation o2) {
+            return Integer.compare(o1.getPosition(), o2.getPosition());
+        }
     }
 }

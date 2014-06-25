@@ -1,5 +1,6 @@
 package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -14,11 +15,11 @@ public class Protein {
     private int taxonID;
     private String sequence;
     private String description;
-    private List<ModifiedLocation> modifiedLocations;
+    private List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>();
     private List<String> tissues;
     private String coverage;
     private List<List<Integer>> regions;
-    private List<PeptideMatch> peptides;
+    private List<PeptideMatch> peptides = new ArrayList<PeptideMatch>();
 
     public String getId() {
         return id;

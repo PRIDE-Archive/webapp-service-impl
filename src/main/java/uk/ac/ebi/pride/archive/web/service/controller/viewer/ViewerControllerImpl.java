@@ -2,7 +2,6 @@ package uk.ac.ebi.pride.archive.web.service.controller.viewer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
 import uk.ac.ebi.pride.proteinindex.search.model.ProteinIdentified;
 import uk.ac.ebi.pride.proteinindex.search.search.service.ProteinIdentificationSearchService;
@@ -23,129 +22,226 @@ public class ViewerControllerImpl {
 
     private static final Logger logger = LoggerFactory.getLogger(ViewerControllerImpl.class);
 
+    public ViewerControllerImpl(ProteinIdentificationSearchService proteinIdentificationSearchService, PsmSearchService psmSearchService) {
+        this.psmSearchService = psmSearchService;
+        this.proteinIdentificationSearchService = proteinIdentificationSearchService;
+    }
+
+    protected ViewerControllerImpl() {
+    }
+
     private ProteinIdentificationSearchService proteinIdentificationSearchService;
     private PsmSearchService psmSearchService;
 
-    @Autowired
-    public ViewerControllerImpl(ProteinIdentificationSearchService proteinSearch, PsmSearchService psmSearch) {
-        this.proteinIdentificationSearchService = proteinSearch;
-        this.psmSearchService = psmSearch;
-    }
 
     public Protein getProteinData(String proteinID) {
+        // the webapp requires a unique protein ID, which is generated as: <assay accession>__<protein accession>
+        // since this is for internal use only, this could potentially be a PRIDE internal id as well...
         logger.info("Protein " + proteinID + " requested...");
 
-        String proteinAccession = getProteinAccessionFromProteinID(proteinID);
         String assayAccession = getAssayAccessionFromProteinID(proteinID);
+        String proteinAccession = getProteinAccessionFromProteinID(proteinID);
+        logger.debug("Extracted assay accession " + assayAccession + " and protein accession " + proteinAccession);
 
+        Protein resultProtein;
         // for a specific test case we create a dummy result
-        Protein resultProtein = new Protein();
-        String dummyProteinAccession = DummyDataCreator.assayAccession + "__" + DummyDataCreator.prot1Accession;
-        if (proteinID.equals(dummyProteinAccession)) {
+        if (proteinID.equals(DummyDataCreator.PROTEIN_1_ID)) {
             resultProtein = DummyDataCreator.createDummyProtein1();
-        } else {
-            // ToDo: use method that searches for protein by assay accession
-            List<ProteinIdentified> proteins = proteinIdentificationSearchService.findByAccessionAndProjectAccessions(proteinAccession, assayAccession);
+        } else { // for all other cases we try to retrieve the real records
+            List<ProteinIdentified> proteins = proteinIdentificationSearchService.findByAccessionAndAssayAccessions(proteinAccession, assayAccession);
             if (proteins == null || proteins.isEmpty()) {
                 return null;
             }
+            if (proteins.size() > 1) {
+                throw new IllegalStateException("Non-unique result for protein query with ID: " + proteinID);
+            }
 
-            ProteinIdentified protein = proteins.get(0);
-            // ToDo: the result should only contain one protein!
+            ProteinIdentified foundProtein = proteins.iterator().next();
 
+            // create a new WS Protein record
+            resultProtein = mapProteinIdentifiedToWSProtein(foundProtein);
+            // set the protein ID to uniquely identify this protein record
+            resultProtein.setId(proteinID);
 
-            // retrieve all PSMs to generate the peptide list needed for a Protein record
-//        List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
-            List<Psm> psms = psmSearchService.findByProteinAccessionAndProjectAccession(proteinAccession, assayAccession);
+            // now add the peptides to the Protein
+            // retrieve all PSMs to generate the information needed for a Protein record
+            List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
 
-            // create list of 'peptide' objects collapsing PSMs (using their sequence and position in the protein)
-            List<PeptideMatch> peptides = createPeptidesFromPsmList(psms);
-            resultProtein.setSequence(/*protein.getSequence()*/ "");  // ToDo: to be provided by Search
-            resultProtein.setId(proteinID); // convention: the ID of a protein (identification) is the assay accession + double underscore + protein accession
-            resultProtein.setAccession(protein.getAccession());
-            resultProtein.setDescription(/*protein.getDescription()*/ "");   // ToDo: to be provided by Search
+            // create list of 'peptide' objects collapsing PSMs
+//            List<PeptideMatch> peptides = createPeptideMatchesFromPsmList(psms);
+            List<PeptideMatch> peptides = mapPsms2WSFilteredPeptides(psms, PeptideMatch.class);
+            // ToDo: take into account if the peptide sequence matches the protein sequence at the stated location
             resultProtein.setPeptides(peptides);
-            List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(0);
-            resultProtein.setModifiedLocations(modifiedLocations);   // ToDo: to possibly be provided by Search
-            resultProtein.setTaxonID(-1); // ToDo: that should also be provided by the Search
-            List<String> tissues = new ArrayList<String>(0);
-            resultProtein.setTissues(tissues);
+
+            // infer protein modifications from list of peptides
+            inferProteinModifications(resultProtein);
+
+             // ToDo: we don't know the species! Could be provided by search or has to be retrieved from assay level
+            resultProtein.setTaxonID(-1);
+
+            // ToDo: we have no tissue information! get tissue(s) from (protein level? or) the assay level
         }
 
         return resultProtein;
     }
 
     public PeptideList getPSMData(String peptideID) {
-        logger.info("PSMs for peptide " + peptideID + " requested...");
+        logger.info("Request for PSMs for peptide " + peptideID);
         // retrieve the PSMs for a particular peptide sequence of a particular protein
 
         String psmSequence = getPsmSequenceFromPsmID(peptideID);
         String proteinAccession = getProteinAccessionFromPsmID(peptideID);
         String assayAccession = getAssayAccessionFromPsmID(peptideID);
         logger.debug("Peptide ID decoded into: assay=" + assayAccession + " protein=" + proteinAccession + " seq=" + psmSequence);
-//
-//
-//        // ToDo: check if assay and sequence is enough to retrieve PSMs for only one protein identification!
-////        psmSearchService.findByPeptideSequenceAndAssayAccession(psmSequence, assayAccession);
-//        // ToDo: alternative retrieve all PSMs for protein + assay and filter (use cache as the same data is used in the above method)
-//        List<Psm> psms = psmSearchService.findByProteinAccessionAndProjectAccession(proteinAccession, assayAccession);
-//
-//        PeptideList result = createPeptideListFromListOfPsms(psms);
-//
-//        if (result == null) {
-//            throw new ResourceNotFoundException("No PSMs found for id: " + peptideID);
-//        }
 
-        List<Peptide> allPsms = DummyDataCreator.createDummyPeptideList();
-        List<Peptide> filteredPsms = new ArrayList<Peptide>();
 
-        for (Peptide peptide : allPsms) {
-            if (peptide.getSequence().equalsIgnoreCase(psmSequence)) {
-                filteredPsms.add(peptide);
+        List<Peptide> result;
+        if (proteinAccession.equalsIgnoreCase(DummyDataCreator.PROT_1_ACCESSION) && assayAccession.equalsIgnoreCase(DummyDataCreator.ASSAY_ACCESSION)) {
+            List<Peptide> allPsms = DummyDataCreator.createDummyPeptideList();
+            List<Peptide> filteredPsms = new ArrayList<Peptide>();
+
+            // only add those peptides where the sequence matches the requested one
+            for (Peptide peptide : allPsms) {
+                if (peptide.getSequence().equalsIgnoreCase(psmSequence)) {
+                    filteredPsms.add(peptide);
+                }
+            }
+            result = filteredPsms;
+        } else {
+            // retrieve ALL PSMs for the protein (since there is no search option to further restrict the result by peptide sequence)
+            List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
+            // and then filter out the peptides we are not interested in
+            List<Psm> filteredPsms = new ArrayList<Psm>();
+            for (Psm psm : psms) {
+                if (psm.getPepSequence().equalsIgnoreCase(psmSequence)) {
+                    filteredPsms.add(psm);
+                }
+            }
+
+            result = mapPsms2WSFilteredPeptides(filteredPsms, Peptide.class);
+
+            if (result == null) {
+                throw new IllegalStateException("No PSMs found for id: " + peptideID);
             }
         }
-        PeptideList result = new PeptideList();
-        result.setPeptideList(filteredPsms);
 
-        return result;
+        return new PeptideList(result);
     }
 
 
-    private List<PeptideMatch> createPeptidesFromPsmList(List<Psm> psms) {
-        Map<String, PeptideMatch> peptideMatchMap = new HashMap<String, PeptideMatch>();
+    private Protein mapProteinIdentifiedToWSProtein(ProteinIdentified foundProtein) {
+        Protein resultProtein;
+        resultProtein = new Protein();
+        resultProtein.setAccession(foundProtein.getAccession());
+        String sequence = foundProtein.getSequence();
+        if (sequence != null && sequence.length() > 5) {
+            resultProtein.setSequence(sequence);
+        } else {
+            throw new IllegalStateException("No valid protein sequence available for protein: " + foundProtein.getAccession());
+        }
+        resultProtein.setDescription(foundProtein.getDescription().get(0));   // ToDo: define which String is the correct one
+        return resultProtein;
+    }
+    private static <T extends Peptide> T mapPsm2WSPeptide(Psm psm, Class<T> clazz) {
+        if (psm == null) { return null; }
 
-        // we have to combine PSMs to peptides that are unique by their sequence
-        PeptideMatch mappedObject;
-        for (Psm psm : psms) {
-            String peptideMatchId = psm.getPepSequence() + ":" + psm.getStartPosition();
-            if (peptideMatchMap.containsKey(peptideMatchId)) {
-                // retrieve the already existing peptide record, so additional data can be added (if needed)
-                mappedObject = peptideMatchMap.get(peptideMatchId);
-            } else {
-                // create a new object with all the data shared by all PSMs
-                mappedObject = new PeptideMatch();
-                mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence());// set the peptide id following the convention
-                mappedObject.setSequence(psm.getPepSequence());
-                mappedObject.setPosition(psm.getStartPosition());
-                mappedObject.setUniqueness(-1);
-                mappedObject.setSymbolic(false);
-                mappedObject.setTaxonID(-1);
-                if (mappedObject.getAssays() == null) {
-                    List<String> assays = new ArrayList<String>();
-                    mappedObject.setAssays(assays);
-                }
-                mappedObject.getAssays().add(psm.getAssayAccession());
-
-                peptideMatchMap.put(peptideMatchId, mappedObject);
-            }
-            // add (if needed) accumulative data
-            List<String> tissues = new ArrayList<String>(0);
-            mappedObject.setTissues(tissues);
-            List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(0);
-            mappedObject.setModifiedLocations(modifiedLocations);
+        T mappedObject;
+        try {
+            mappedObject = clazz.newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException("Could not instantiate object for class: " + clazz.getName());
         }
 
-        return new ArrayList<PeptideMatch>(peptideMatchMap.values());
+        // define a unique ID for the peptide
+        mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence());
+        mappedObject.setSequence(psm.getPepSequence());
+        mappedObject.setSymbolic(false); // symbolic does not apply to Archive data
+        mappedObject.setTaxonID(-1); // we don't have the species information, so we set a default value
+        mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+        if (psm.getAssayAccession() != null) {
+            mappedObject.getAssays().add(psm.getAssayAccession());
+        }
+
+        if (mappedObject instanceof PeptideMatch) {
+            ((PeptideMatch) mappedObject).setPosition(psm.getStartPosition());
+            ((PeptideMatch) mappedObject).setUniqueness(-1);
+        }
+
+        return mappedObject;
+    }
+    private static List<ModifiedLocation> mapPsmModifications2WSPeptideModifiedLocations(Psm psm) {
+        if (psm == null || psm.getModifications() == null) {
+            return null;
+        }
+        List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(0);
+        for (String modString : psm.getModifications()) {
+            String[] parts = modString.split("-");
+            int position = Integer.parseInt(parts[0]);
+            String mod = parts[1];
+            ModifiedLocation modifiedLocation = new ModifiedLocation();
+            modifiedLocation.setPosition(position);
+            modifiedLocation.setModification(mod);
+            modifiedLocations.add(modifiedLocation);
+        }
+        return modifiedLocations;
+    }
+    private <T extends Peptide> List<T> mapPsms2WSFilteredPeptides(List<Psm> psms, Class<T> clazz) {
+        Map<String, T> peptideMatchMap = new HashMap<String, T>();
+
+        // we have to combine PSMs to peptides that are unique by their sequence + start position
+        T mappedObject;
+        for (Psm psm : psms) {
+            String peptideMatchId = psm.getPepSequence() + ":" + psm.getStartPosition();
+            // create a new record one does not already exist
+            if ( !peptideMatchMap.containsKey(peptideMatchId) ) {
+                peptideMatchMap.put(peptideMatchId, mapPsm2WSPeptide(psm, clazz));
+            }
+
+            // add cumulative data (for now: modifications) to the record
+            mappedObject = peptideMatchMap.get(peptideMatchId);
+            // ToDo: avoid duplication of ModifiedLocationS
+            mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+        }
+
+        return new ArrayList<T>(peptideMatchMap.values());
+    }
+
+    protected void inferProteinModifications(Protein protein) {
+        // if there are no peptides to possibly infer modifications from, there is nothing to do!
+        if (protein.getPeptides() == null) {
+            return;
+        }
+        // if there is no protein sequence or it seems invalid, we can't proceed with the inference
+        if (protein.getSequence() == null || protein.getSequence().length() < 5) {
+            throw new IllegalArgumentException("Can not infer modifications for protein with invalid sequence: " + protein.getAccession());
+        }
+        if (protein.getPeptides() == null || protein.getPeptides().isEmpty()) {
+            return;
+        }
+
+        // ToDo: aggregate duplicated ModifiedLocationS (i.e. due to multiple peptides)
+        // ToDo: take inconsistent match cases into account! For example:
+        //      peptide sequence does not match protein sequence
+        //      peptide sequence does match the protein sequence, but not on the reported location
+        for (PeptideMatch peptideMatch : protein.getPeptides()) {
+            // if there are no modifications, we move on...
+            if (peptideMatch.getModifiedLocations() == null || peptideMatch.getModifiedLocations().isEmpty()) {
+                continue;
+            }
+            int startPos = protein.getSequence().indexOf(peptideMatch.getSequence());
+            while (startPos != -1) {
+                for (ModifiedLocation modifiedLocation : peptideMatch.getModifiedLocations()) {
+                    if (modifiedLocation.getPosition() > 0) {
+                        ModifiedLocation protMod = new ModifiedLocation();
+                        protMod.setPosition(startPos + modifiedLocation.getPosition());
+                        protMod.setModification(modifiedLocation.getModification());
+                        protein.getModifiedLocations().add(protMod);
+                    } // ToDo: what to do in cases where position <= 0 ?
+                }
+                // check if the peptide matches the protein on another location
+                startPos = protein.getSequence().indexOf(peptideMatch.getSequence(), startPos + 1);
+            }
+        }
     }
 
     private String getAssayAccessionFromProteinID(String proteinID) {
@@ -193,6 +289,17 @@ public class ViewerControllerImpl {
         }
         return parts[2];
     }
+
+
+    // TODO: why List<String> for ProteinIdentified.getDescription()
+    // TODO: species for protein?
+    // TODO: modifications + locations on protein?
+    // TODO:
+    // TODO:
+    // TODO:
+    // TODO:
+
+
 
 
 }
