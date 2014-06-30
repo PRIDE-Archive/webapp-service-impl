@@ -69,8 +69,9 @@ public class ViewerControllerImpl {
 
             // create list of 'peptide' objects collapsing PSMs
 //            List<PeptideMatch> peptides = createPeptideMatchesFromPsmList(psms);
-            List<PeptideMatch> peptides = mapPsms2WSFilteredPeptides(psms, PeptideMatch.class);
+            List<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(psms, PeptideMatch.class);
             // ToDo: take into account if the peptide sequence matches the protein sequence at the stated location
+            adjustPeptideProteinMatches(peptides, resultProtein.getSequence());
             resultProtein.setPeptides(peptides);
 
             // infer protein modifications from list of peptides
@@ -83,6 +84,18 @@ public class ViewerControllerImpl {
         }
 
         return resultProtein;
+    }
+
+    private void adjustPeptideProteinMatches(List<PeptideMatch> peptides, String protSeq) {
+        // note: we only adjust the uniqueness flag according to whether the peptide matches at the stated position
+        for (PeptideMatch peptide : peptides) {
+            String pepSeq = peptide.getSequence();
+            if ( protSeq.regionMatches(peptide.getPosition() - 1, pepSeq, 0, pepSeq.length()) ) {
+                peptide.setUniqueness(1);
+            } else {
+                peptide.setUniqueness(-1);
+            }
+        }
     }
 
     public PeptideList getPSMData(String peptideID) {
@@ -118,7 +131,7 @@ public class ViewerControllerImpl {
                 }
             }
 
-            result = mapPsms2WSFilteredPeptides(filteredPsms, Peptide.class);
+            result = mapPsms2WSPeptides(filteredPsms, Peptide.class);
 
             if (result == null) {
                 throw new IllegalStateException("No PSMs found for id: " + peptideID);
@@ -129,7 +142,7 @@ public class ViewerControllerImpl {
     }
 
 
-    private Protein mapProteinIdentifiedToWSProtein(ProteinIdentified foundProtein) {
+    private static Protein mapProteinIdentifiedToWSProtein(ProteinIdentified foundProtein) {
         Protein resultProtein;
         resultProtein = new Protein();
         resultProtein.setAccession(foundProtein.getAccession());
@@ -152,12 +165,15 @@ public class ViewerControllerImpl {
             throw new IllegalStateException("Could not instantiate object for class: " + clazz.getName());
         }
 
-        // define a unique ID for the peptide
+        // ToDo: define a unique ID for the peptide
+        // ToDo: the current approach is not well suited for all cases, it will uniquely identify a peptide (PeptideMatch), but not a PSM (Peptide)
         mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence());
         mappedObject.setSequence(psm.getPepSequence());
         mappedObject.setSymbolic(false); // symbolic does not apply to Archive data
         mappedObject.setTaxonID(-1); // we don't have the species information, so we set a default value
-        mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+        if (psm.getModifications() != null) {
+            mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+        }
         if (psm.getAssayAccession() != null) {
             mappedObject.getAssays().add(psm.getAssayAccession());
         }
@@ -175,17 +191,15 @@ public class ViewerControllerImpl {
         }
         List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(0);
         for (String modString : psm.getModifications()) {
-            String[] parts = modString.split("-");
-            int position = Integer.parseInt(parts[0]);
-            String mod = parts[1];
-            ModifiedLocation modifiedLocation = new ModifiedLocation();
-            modifiedLocation.setPosition(position);
-            modifiedLocation.setModification(mod);
-            modifiedLocations.add(modifiedLocation);
+            ModifiedLocation loc = mapModificationString2WSModifiedLocation(modString);
+            // we ignore peptide terminal modifications
+            if (loc.getPosition() > 0 && loc.getPosition() < psm.getPepSequence().length()+1) {
+                modifiedLocations.add( loc );
+            }
         }
         return modifiedLocations;
     }
-    private <T extends Peptide> List<T> mapPsms2WSFilteredPeptides(List<Psm> psms, Class<T> clazz) {
+    private static <T extends Peptide> List<T> mapPsms2WSPeptidesFiltered(List<Psm> psms, Class<T> clazz) {
         Map<String, T> peptideMatchMap = new HashMap<String, T>();
 
         // we have to combine PSMs to peptides that are unique by their sequence + start position
@@ -200,13 +214,40 @@ public class ViewerControllerImpl {
             // add cumulative data (for now: modifications) to the record
             mappedObject = peptideMatchMap.get(peptideMatchId);
             // ToDo: avoid duplication of ModifiedLocationS
-            mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+            if (psm.getModifications() != null) {
+                mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+            }
         }
 
         return new ArrayList<T>(peptideMatchMap.values());
     }
+    private static <T extends Peptide> List<T> mapPsms2WSPeptides(List<Psm> psms, Class<T> clazz) {
+        List<T> mappedObjects = new ArrayList<T>(psms.size());
+        for (Psm psm : psms) {
+            T mappedObject = mapPsm2WSPeptide(psm, clazz);
+            if (psm.getModifications() != null) {
+                mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+            }
+            mappedObjects.add(mappedObject);
+        }
+        return mappedObjects;
+    }
+    private static ModifiedLocation mapModificationString2WSModifiedLocation(String modString) {
+        String[] parts = modString.split("-");
+        if (parts.length != 2) {
+            throw new IllegalArgumentException("Invalid modification annotation: " + modString);
+        }
+        String positionString = parts[0];
+        String mod = parts[1];
+        if (positionString.contains("|")) {
+            logger.error("Ambiguous position definition:" + positionString + "! Continuing with default assumption: first position.");
+            positionString = positionString.split("\\|")[0];
+        }
+        int position = Integer.parseInt(positionString);
+        return new ModifiedLocation(mod, position);
+    }
 
-    protected void inferProteinModifications(Protein protein) {
+    protected static void inferProteinModifications(Protein protein) {
         // if there are no peptides to possibly infer modifications from, there is nothing to do!
         if (protein.getPeptides() == null) {
             return;
@@ -244,7 +285,7 @@ public class ViewerControllerImpl {
         }
     }
 
-    private String getAssayAccessionFromProteinID(String proteinID) {
+    public static String getAssayAccessionFromProteinID(String proteinID) {
         // convention: <assay accession><double underscore><protein accession>;
         // example   : 13567__P12345
         String[] parts = proteinID.split("__");
@@ -253,7 +294,7 @@ public class ViewerControllerImpl {
         }
         return parts[0];
     }
-    private String getProteinAccessionFromProteinID(String proteinID) {
+    private static String getProteinAccessionFromProteinID(String proteinID) {
         // convention: <assay accession><double underscore><protein accession>;
         // example   : 13567__P12345
         String[] parts = proteinID.split("__");
@@ -262,7 +303,7 @@ public class ViewerControllerImpl {
         }
         return parts[1];
     }
-    private String getAssayAccessionFromPsmID(String psmID) {
+    public static String getAssayAccessionFromPsmID(String psmID) {
         // convention: <assay accession><double underscore><protein accession><double underscore><psm sequence>;
         // example   : 13567__P12345__NDRQSLNISNK
         String[] parts = psmID.split("__");
@@ -271,7 +312,7 @@ public class ViewerControllerImpl {
         }
         return parts[0];
     }
-    private String getProteinAccessionFromPsmID(String psmID) {
+    private static String getProteinAccessionFromPsmID(String psmID) {
         // convention: <assay accession><double underscore><protein accession><double underscore><psm sequence>;
         // example   : 13567__P12345__NDRQSLNISNK
         String[] parts = psmID.split("__");
@@ -280,7 +321,7 @@ public class ViewerControllerImpl {
         }
         return parts[1];
     }
-    private String getPsmSequenceFromPsmID(String psmID) {
+    private static String getPsmSequenceFromPsmID(String psmID) {
         // convention: <assay accession><double underscore><protein accession><double underscore><psm sequence>;
         // example   : 13567__P12345__NDRQSLNISNK
         String[] parts = psmID.split("__");
@@ -292,12 +333,7 @@ public class ViewerControllerImpl {
 
 
     // TODO: why List<String> for ProteinIdentified.getDescription()
-    // TODO: species for protein?
-    // TODO: modifications + locations on protein?
-    // TODO:
-    // TODO:
-    // TODO:
-    // TODO:
+    // TODO: species for protein & psm?
 
 
 

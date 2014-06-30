@@ -16,7 +16,7 @@ public class Protein {
     private String sequence;
     private String description;
     private List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>();
-    private List<String> tissues;
+    private List<String> tissues = new ArrayList<String>();
     private String coverage;
     private List<List<Integer>> regions;
     private List<PeptideMatch> peptides = new ArrayList<PeptideMatch>();
