@@ -7,6 +7,7 @@ import uk.ac.ebi.pride.proteinindex.search.model.ProteinIdentified;
 import uk.ac.ebi.pride.proteinindex.search.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 import uk.ac.ebi.pride.psmindex.search.service.PsmSearchService;
+import uk.ac.ebi.pride.psmindex.search.util.helper.ModificationProvider;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -126,7 +127,7 @@ public class ViewerControllerImpl {
             // and then filter out the peptides we are not interested in
             List<Psm> filteredPsms = new ArrayList<Psm>();
             for (Psm psm : psms) {
-                if (psm.getPepSequence().equalsIgnoreCase(psmSequence)) {
+                if (psm.getPeptideSequence().equalsIgnoreCase(psmSequence)) {
                     filteredPsms.add(psm);
                 }
             }
@@ -165,7 +166,7 @@ public class ViewerControllerImpl {
             throw new IllegalStateException("Could not instantiate object for class: " + clazz.getName());
         }
 
-        mappedObject.setSequence(psm.getPepSequence());
+        mappedObject.setSequence(psm.getPeptideSequence());
         mappedObject.setSymbolic(false); // symbolic does not apply to Archive data
         mappedObject.setTaxonID(-1); // we don't have the species information, so we set a default value
         if (psm.getModifications() != null) {
@@ -182,10 +183,10 @@ public class ViewerControllerImpl {
             ((PeptideMatch) mappedObject).setPosition(psm.getStartPosition());
             ((PeptideMatch) mappedObject).setUniqueness(-1); // default value that should be overwritten for matching peptides
             // create and assign a unique ID for the PeptideMatch
-            mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence());
+            mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPeptideSequence());
         } else {
             // create and assign a unique ID for the Peptide (PSM)
-            mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence() + "__" + psm.getReportedId());
+            mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPeptideSequence() + "__" + psm.getReportedId());
         }
 
         return mappedObject;
@@ -195,10 +196,10 @@ public class ViewerControllerImpl {
             return null;
         }
         List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(0);
-        for (String modString : psm.getModifications()) {
-            ModifiedLocation loc = mapModificationString2WSModifiedLocation(modString);
+        for (ModificationProvider mod : psm.getModifications()) {
+            ModifiedLocation loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition());
             // we ignore peptide terminal modifications
-            if (loc.getPosition() > 0 && loc.getPosition() < psm.getPepSequence().length()+1) {
+            if (loc.getPosition() > 0 && loc.getPosition() < psm.getPeptideSequence().length()+1) {
                 modifiedLocations.add( loc );
             }
         }
@@ -212,7 +213,7 @@ public class ViewerControllerImpl {
         // but mapped to different locations on the protein sequence
         T mappedObject;
         for (Psm psm : psms) {
-            String peptideMatchId = psm.getPepSequence() + ":" + psm.getStartPosition();
+            String peptideMatchId = psm.getPeptideSequence() + ":" + psm.getStartPosition();
             // create a new record one does not already exist
             if ( !peptideMatchMap.containsKey(peptideMatchId) ) {
                 peptideMatchMap.put(peptideMatchId, mapPsm2WSPeptide(psm, clazz));
@@ -238,20 +239,6 @@ public class ViewerControllerImpl {
             mappedObjects.add(mappedObject);
         }
         return mappedObjects;
-    }
-    private static ModifiedLocation mapModificationString2WSModifiedLocation(String modString) {
-        String[] parts = modString.split("-");
-        if (parts.length != 2) {
-            throw new IllegalArgumentException("Invalid modification annotation: " + modString);
-        }
-        String positionString = parts[0];
-        String mod = parts[1];
-        if (positionString.contains("|")) {
-            logger.error("Ambiguous position definition:" + positionString + "! Continuing with default assumption: first position.");
-            positionString = positionString.split("\\|")[0];
-        }
-        int position = Integer.parseInt(positionString);
-        return new ModifiedLocation(mod, position);
     }
 
     protected static void inferProteinModifications(Protein protein) {
