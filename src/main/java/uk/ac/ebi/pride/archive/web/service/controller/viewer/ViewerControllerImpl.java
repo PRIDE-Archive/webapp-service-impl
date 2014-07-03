@@ -70,7 +70,7 @@ public class ViewerControllerImpl {
             // create list of 'peptide' objects collapsing PSMs
 //            List<PeptideMatch> peptides = createPeptideMatchesFromPsmList(psms);
             List<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(psms, PeptideMatch.class);
-            // ToDo: take into account if the peptide sequence matches the protein sequence at the stated location
+            // take into account if the peptide sequence matches the protein sequence at the stated location
             adjustPeptideProteinMatches(peptides, resultProtein.getSequence());
             resultProtein.setPeptides(peptides);
 
@@ -165,9 +165,6 @@ public class ViewerControllerImpl {
             throw new IllegalStateException("Could not instantiate object for class: " + clazz.getName());
         }
 
-        // ToDo: define a unique ID for the peptide
-        // ToDo: the current approach is not well suited for all cases, it will uniquely identify a peptide (PeptideMatch), but not a PSM (Peptide)
-        mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence());
         mappedObject.setSequence(psm.getPepSequence());
         mappedObject.setSymbolic(false); // symbolic does not apply to Archive data
         mappedObject.setTaxonID(-1); // we don't have the species information, so we set a default value
@@ -178,9 +175,17 @@ public class ViewerControllerImpl {
             mappedObject.getAssays().add(psm.getAssayAccession());
         }
 
+        // handle differences between the base Peptide and a PeptideMatch
+        // we assign different IDs for Peptides and PeptideMatches
+        // we assign additional values to PeptideMatches
         if (mappedObject instanceof PeptideMatch) {
             ((PeptideMatch) mappedObject).setPosition(psm.getStartPosition());
-            ((PeptideMatch) mappedObject).setUniqueness(-1);
+            ((PeptideMatch) mappedObject).setUniqueness(-1); // default value that should be overwritten for matching peptides
+            // create and assign a unique ID for the PeptideMatch
+            mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence());
+        } else {
+            // create and assign a unique ID for the Peptide (PSM)
+            mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPepSequence() + "__" + psm.getReportedId());
         }
 
         return mappedObject;
@@ -203,6 +208,8 @@ public class ViewerControllerImpl {
         Map<String, T> peptideMatchMap = new HashMap<String, T>();
 
         // we have to combine PSMs to peptides that are unique by their sequence + start position
+        // include start position in ID to distinguish peptides with the same sequence,
+        // but mapped to different locations on the protein sequence
         T mappedObject;
         for (Psm psm : psms) {
             String peptideMatchId = psm.getPepSequence() + ":" + psm.getStartPosition();
@@ -272,6 +279,9 @@ public class ViewerControllerImpl {
             int startPos = protein.getSequence().indexOf(peptideMatch.getSequence());
             while (startPos != -1) {
                 for (ModifiedLocation modifiedLocation : peptideMatch.getModifiedLocations()) {
+                    // ToDo: handle n-terminal modification (if startPos == 0, e.g. peptide matches at the beginning of the protein)
+                    // excludes n-terminal modification
+                    // ToD; check for c-terminal modifications (they should only be mapped on the end of the protein!)
                     if (modifiedLocation.getPosition() > 0) {
                         ModifiedLocation protMod = new ModifiedLocation();
                         protMod.setPosition(startPos + modifiedLocation.getPosition());
@@ -330,11 +340,6 @@ public class ViewerControllerImpl {
         }
         return parts[2];
     }
-
-
-    // TODO: why List<String> for ProteinIdentified.getDescription()
-    // TODO: species for protein & psm?
-
 
 
 
