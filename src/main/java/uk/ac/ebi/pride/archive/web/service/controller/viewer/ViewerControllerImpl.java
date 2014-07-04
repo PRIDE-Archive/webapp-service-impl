@@ -221,9 +221,9 @@ public class ViewerControllerImpl {
 
             // add cumulative data (for now: modifications) to the record
             mappedObject = peptideMatchMap.get(peptideMatchId);
-            // ToDo: avoid duplication of ModifiedLocationS
             if (psm.getModifications() != null) {
-                mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm));
+                // add the ModificationLodationS, the Peptide will take care of removing duplicated ones
+                mappedObject.getModifiedLocations().addAll(mapPsmModifications2WSPeptideModifiedLocations(psm));
             }
         }
 

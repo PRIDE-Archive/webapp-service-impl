@@ -1,7 +1,6 @@
 package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * @author Florian Reisinger
@@ -16,7 +15,7 @@ public class Peptide {
     private boolean symbolic;
     private String sequence;
     private int taxonID;
-    private List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>();
+    private Set<ModifiedLocation> modifiedLocations = new TreeSet<ModifiedLocation>(new ModifiedLocation.ModifiedLocationPositionComparator());
     private List<String> tissues = new ArrayList<String>(0);
     private List<String> assays = new ArrayList<String>(1);
 
@@ -52,12 +51,13 @@ public class Peptide {
         this.taxonID = taxonID;
     }
 
-    public List<ModifiedLocation> getModifiedLocations() {
+    public Set<ModifiedLocation> getModifiedLocations() {
         return modifiedLocations;
     }
 
-    public void setModifiedLocations(List<ModifiedLocation> modifiedLocations) {
-        this.modifiedLocations = modifiedLocations;
+    public void setModifiedLocations(Collection<ModifiedLocation> modifiedLocations) {
+        this.modifiedLocations.clear();
+        this.modifiedLocations.addAll(modifiedLocations);
     }
 
     public List<String> getTissues() {
