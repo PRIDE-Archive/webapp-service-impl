@@ -5,8 +5,9 @@ import java.util.*;
 /**
  * @author Florian Reisinger
  *         Date: 07/05/14
- * @since $version
+ * @since 0.1
  */
+@SuppressWarnings("unused")
 public class Peptide {
 
     // corresponds to a 'Peptiform/PeptideVariance' in Proteomes

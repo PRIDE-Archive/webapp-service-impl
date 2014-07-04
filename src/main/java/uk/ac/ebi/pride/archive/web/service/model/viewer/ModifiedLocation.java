@@ -36,13 +36,15 @@ public class ModifiedLocation {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) { return true; }
+        if (o == null || getClass() != o.getClass()) { return false; }
 
         ModifiedLocation that = (ModifiedLocation) o;
 
-        if (position != that.position) return false;
-        if (modification != null ? !modification.equals(that.modification) : that.modification != null) return false;
+        if (position != that.position) { return false; }
+        if (modification != null ? !modification.equals(that.modification) : that.modification != null) {
+            return false;
+        }
 
         return true;
     }
