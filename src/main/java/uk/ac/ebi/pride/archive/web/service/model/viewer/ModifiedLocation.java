@@ -1,7 +1,5 @@
 package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
-import java.util.Comparator;
-
 /**
  * @author Florian Reisinger
  * @since 1.0.1
@@ -61,36 +59,5 @@ public class ModifiedLocation {
         return "ModifiedLocation[" + position + ":" + modification + ']';
     }
 
-
-    /**
-     * Class to compare ModifiedLocation objects based on their position.
-     * If two ModifiedLocation objects have the same position, their Modification String is compared.
-     */
-    public static class ModifiedLocationPositionComparator implements Comparator<ModifiedLocation> {
-        @Override
-        public int compare(ModifiedLocation o1, ModifiedLocation o2) {
-
-            // first compare locations
-            if (o1.position < o2.position) {
-                return -1;
-            } else if (o1.position > o2.position) {
-                return 1;
-            }
-
-            // if on the same location, compare the modification string
-            if (o1.modification == null) {
-                if (o2.modification == null) {
-                    return 0;
-                } else {
-                    return 1;
-                }
-            }
-            if (o2.modification == null) {
-                return -1;
-            }
-
-            return o1.modification.compareTo(o2.modification);
-        }
-    }
 
 }

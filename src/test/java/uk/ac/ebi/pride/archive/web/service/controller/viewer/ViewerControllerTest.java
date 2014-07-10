@@ -6,7 +6,7 @@ import uk.ac.ebi.pride.archive.web.service.model.viewer.ModifiedLocation;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.PeptideMatch;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.Protein;
 
-import java.util.Collections;
+import java.util.Iterator;
 
 /**
  * @author Florian Reisinger
@@ -14,8 +14,6 @@ import java.util.Collections;
  */
 public class ViewerControllerTest {
 
-
-    private ViewerControllerImpl viewerController = new ViewerControllerImpl();
 
     @Test
     public void testInferProteinModifications() {
@@ -47,21 +45,20 @@ public class ViewerControllerTest {
         protein.getPeptides().add(peptide1);
         protein.getPeptides().add(peptide2);
 
-        viewerController.inferProteinModifications(protein);
-
-        // make sure the modifications are sorted according to their position on the protein sequence
-        Collections.sort(protein.getModifiedLocations(), new ModifiedLocation.ModifiedLocationPositionComparator());
+        ViewerControllerImpl.inferProteinModifications(protein);
 
         // test that the modifications are located at the expected positions
-        Assert.assertEquals(18, protein.getModifiedLocations().get(0).getPosition());
-        Assert.assertEquals(20, protein.getModifiedLocations().get(1).getPosition());
-        Assert.assertEquals(23, protein.getModifiedLocations().get(2).getPosition());
-        Assert.assertEquals(41, protein.getModifiedLocations().get(3).getPosition());
-        Assert.assertEquals(43, protein.getModifiedLocations().get(4).getPosition());
-        Assert.assertEquals(46, protein.getModifiedLocations().get(5).getPosition());
-        Assert.assertEquals(93, protein.getModifiedLocations().get(6).getPosition());
-        Assert.assertEquals(95, protein.getModifiedLocations().get(7).getPosition());
-        Assert.assertEquals(98, protein.getModifiedLocations().get(8).getPosition());
+        Iterator<ModifiedLocation> iterator = protein.getModifiedLocations().iterator();
+        Assert.assertEquals(18, iterator.next().getPosition());
+        Assert.assertEquals(20, iterator.next().getPosition());
+        Assert.assertEquals(23, iterator.next().getPosition());
+        Assert.assertEquals(41, iterator.next().getPosition());
+        Assert.assertEquals(43, iterator.next().getPosition());
+        Assert.assertEquals(46, iterator.next().getPosition());
+        Assert.assertEquals(93, iterator.next().getPosition());
+        Assert.assertEquals(95, iterator.next().getPosition());
+        Assert.assertEquals(98, iterator.next().getPosition());
+        Assert.assertFalse(iterator.hasNext());
 
     }
 

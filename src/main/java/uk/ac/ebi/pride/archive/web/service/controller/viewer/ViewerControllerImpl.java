@@ -58,6 +58,9 @@ public class ViewerControllerImpl {
             }
 
             ProteinIdentified foundProtein = proteins.iterator().next();
+            if (foundProtein.getSequence() == null || foundProtein.getSequence().length() < 5) {
+                throw new IllegalArgumentException("Illegal protein! No valid sequence present for: " + proteinID);
+            }
 
             // create a new WS Protein record
             resultProtein = mapProteinIdentifiedToWSProtein(foundProtein);
@@ -73,30 +76,18 @@ public class ViewerControllerImpl {
             List<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(psms, PeptideMatch.class);
             // take into account if the peptide sequence matches the protein sequence at the stated location
             adjustPeptideProteinMatches(peptides, resultProtein.getSequence());
-            resultProtein.setPeptides(peptides);
+            resultProtein.getPeptides().addAll(peptides);
 
             // infer protein modifications from list of peptides
             inferProteinModifications(resultProtein);
 
-             // ToDo: we don't know the species! Could be provided by search or has to be retrieved from assay level
+             // ToDo: we don't know the species! Could be provided by search?
             resultProtein.setTaxonID(-1);
 
-            // ToDo: we have no tissue information! get tissue(s) from (protein level? or) the assay level
+            // ToDo: we have no tissue information! get tissue(s) from protein/assay level?
         }
 
         return resultProtein;
-    }
-
-    private void adjustPeptideProteinMatches(List<PeptideMatch> peptides, String protSeq) {
-        // note: we only adjust the uniqueness flag according to whether the peptide matches at the stated position
-        for (PeptideMatch peptide : peptides) {
-            String pepSeq = peptide.getSequence();
-            if ( protSeq.regionMatches(peptide.getPosition() - 1, pepSeq, 0, pepSeq.length()) ) {
-                peptide.setUniqueness(1);
-            } else {
-                peptide.setUniqueness(-1);
-            }
-        }
     }
 
     public PeptideList getPSMData(String peptideID) {
@@ -143,6 +134,28 @@ public class ViewerControllerImpl {
     }
 
 
+
+    /**
+     * Highjack the uniqueness flag to assign a positive value if the peptide sequence matches
+     * the protein sequence at the specified position and a negative value otherwise.
+     * Note: this does not check if the peptide sequence matches the protein sequence at all.
+     *       It only checks if it matches were it is supposed to match, e.g. on peptide.getPosition().
+     *
+     * @param peptides the peptides to match against the protein sequence
+     * @param protSeq the protein sequence to match the peptides against
+     */
+    private void adjustPeptideProteinMatches(List<PeptideMatch> peptides, String protSeq) {
+        // note: we only adjust the uniqueness flag according to whether the peptide matches at the stated position
+        for (PeptideMatch peptide : peptides) {
+            String pepSeq = peptide.getSequence();
+            if ( protSeq.regionMatches(peptide.getPosition() - 1, pepSeq, 0, pepSeq.length()) ) {
+                peptide.setUniqueness(1);
+            } else {
+                peptide.setUniqueness(-1);
+            }
+        }
+    }
+
     private static Protein mapProteinIdentifiedToWSProtein(ProteinIdentified foundProtein) {
         Protein resultProtein;
         resultProtein = new Protein();
@@ -180,7 +193,7 @@ public class ViewerControllerImpl {
         // we assign different IDs for Peptides and PeptideMatches
         // we assign additional values to PeptideMatches
         if (mappedObject instanceof PeptideMatch) {
-            ((PeptideMatch) mappedObject).setPosition(psm.getStartPosition());
+            ((PeptideMatch) mappedObject).setPosition(psm.getStartPosition() == null ? -1 : psm.getStartPosition());
             ((PeptideMatch) mappedObject).setUniqueness(-1); // default value that should be overwritten for matching peptides
             // create and assign a unique ID for the PeptideMatch
             mappedObject.setId(psm.getAssayAccession() + "__" + psm.getProteinAccession() + "__" + psm.getPeptideSequence());

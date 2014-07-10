@@ -5,12 +5,23 @@ package uk.ac.ebi.pride.archive.web.service.model.viewer;
  *         Date: 07/05/14
  * @since $version
  */
+@SuppressWarnings("unused")
 public class PeptideMatch extends Peptide {
 
     // corresponds to a 'Peptide' in Proteomes
 
     private int position;
     private int uniqueness;
+
+    public PeptideMatch() {
+        this.position = -1;
+        this.uniqueness = -1;
+    }
+
+    protected PeptideMatch(int position, String sequence) {
+        this.position = position;
+        this.setSequence(sequence);
+    }
 
     public int getPosition() {
         return position;

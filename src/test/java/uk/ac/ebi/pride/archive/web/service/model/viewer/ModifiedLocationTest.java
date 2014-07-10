@@ -1,11 +1,13 @@
-package uk.ac.ebi.pride.archive.web.service.controller.viewer;
+package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
 import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import uk.ac.ebi.pride.archive.web.service.model.viewer.ModifiedLocation;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.TreeSet;
 
 /**
  * @author florian@ebi.ac.uk
@@ -14,11 +16,10 @@ import java.util.*;
 public class ModifiedLocationTest {
 
     private ModifiedLocation[] modArray;
-    private final int COUNT = 10;
 
     @Before
     public void setup() {
-        modArray = new ModifiedLocation[COUNT];
+        modArray = new ModifiedLocation[10];
         modArray[0] = new ModifiedLocation("Phosphorylation", 5);
         modArray[1] = new ModifiedLocation("Oxidation", 5);
         modArray[2] = new ModifiedLocation("Oxidation", 5); // duplicated entry
@@ -41,20 +42,26 @@ public class ModifiedLocationTest {
 
     @Test
     public void testModifiedLocationPositionComparator() {
-        TreeSet<ModifiedLocation> modSet = new TreeSet<ModifiedLocation>(new ModifiedLocation.ModifiedLocationPositionComparator());
+        TreeSet<ModifiedLocation> modSet = new TreeSet<ModifiedLocation>(new ModifiedLocationPositionComparator());
         modSet.addAll(Arrays.asList(modArray));
 
         Assert.assertTrue(modSet.size() == 8); // due to duplication we only expect 8 entries
 
-        Iterator<ModifiedLocation> iterator = modSet.descendingIterator();
-        Assert.assertEquals(iterator.next(), modArray[7]);
-        Assert.assertEquals(iterator.next(), modArray[3]);
-        Assert.assertEquals(iterator.next(), modArray[6]);
-        Assert.assertEquals(iterator.next(), modArray[0]);
-        Assert.assertEquals(iterator.next(), modArray[1]);
-        Assert.assertEquals(iterator.next(), modArray[5]);
-        Assert.assertEquals(iterator.next(), modArray[8]);
+//        for (ModifiedLocation ml : modSet) {
+//            System.out.println(ml);
+//        }
+
+        Iterator<ModifiedLocation> iterator = modSet.iterator();
+
         Assert.assertEquals(iterator.next(), modArray[4]);
+        Assert.assertEquals(iterator.next(), modArray[8]);
+        Assert.assertEquals(iterator.next(), modArray[5]);
+        Assert.assertEquals(iterator.next(), modArray[1]);
+        Assert.assertEquals(iterator.next(), modArray[0]);
+        Assert.assertEquals(iterator.next(), modArray[6]);
+        Assert.assertEquals(iterator.next(), modArray[3]);
+        Assert.assertEquals(iterator.next(), modArray[7]);
+
 
         // check that there are no further elements
         boolean nextIsException = false;

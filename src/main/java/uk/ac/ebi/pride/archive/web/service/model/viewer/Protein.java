@@ -2,12 +2,14 @@ package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * @author Florian Reisinger
- *         Date: 07/05/14
- * @since $version
+ * @since 0.1
  */
+@SuppressWarnings("unused")
 public class Protein {
 
     private String id;
@@ -15,11 +17,11 @@ public class Protein {
     private int taxonID;
     private String sequence;
     private String description;
-    private List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>();
+    private Set<ModifiedLocation> modifiedLocations = new TreeSet<ModifiedLocation>(new ModifiedLocationPositionComparator());
     private List<String> tissues = new ArrayList<String>();
     private String coverage;
     private List<List<Integer>> regions;
-    private List<PeptideMatch> peptides = new ArrayList<PeptideMatch>();
+    private Set<PeptideMatch> peptides = new TreeSet<PeptideMatch>(new PeptideMatchPositionComparator());
 
     public String getId() {
         return id;
@@ -61,12 +63,13 @@ public class Protein {
         this.description = description;
     }
 
-    public List<ModifiedLocation> getModifiedLocations() {
+    public Set<ModifiedLocation> getModifiedLocations() {
         return modifiedLocations;
     }
 
     public void setModifiedLocations(List<ModifiedLocation> modifiedLocations) {
-        this.modifiedLocations = modifiedLocations;
+        this.modifiedLocations.clear();
+        this.modifiedLocations.addAll(modifiedLocations);
     }
 
     public List<String> getTissues() {
@@ -93,11 +96,12 @@ public class Protein {
         this.regions = regions;
     }
 
-    public List<PeptideMatch> getPeptides() {
+    public Set<PeptideMatch> getPeptides() {
         return peptides;
     }
 
     public void setPeptides(List<PeptideMatch> peptides) {
-        this.peptides = peptides;
+        this.peptides.clear();
+        this.peptides.addAll(peptides);
     }
 }

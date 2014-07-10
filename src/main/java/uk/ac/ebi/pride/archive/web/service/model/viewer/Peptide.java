@@ -16,7 +16,7 @@ public class Peptide {
     private boolean symbolic;
     private String sequence;
     private int taxonID;
-    private Set<ModifiedLocation> modifiedLocations = new TreeSet<ModifiedLocation>(new ModifiedLocation.ModifiedLocationPositionComparator());
+    private Set<ModifiedLocation> modifiedLocations = new TreeSet<ModifiedLocation>(new ModifiedLocationPositionComparator());
     private List<String> tissues = new ArrayList<String>(0);
     private List<String> assays = new ArrayList<String>(1);
 
