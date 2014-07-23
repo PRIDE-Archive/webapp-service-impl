@@ -2,12 +2,12 @@ package uk.ac.ebi.pride.archive.web.service.controller.viewer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.ac.ebi.pride.archive.dataprovider.identification.ModificationProvider;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
 import uk.ac.ebi.pride.proteinindex.search.model.ProteinIdentified;
 import uk.ac.ebi.pride.proteinindex.search.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 import uk.ac.ebi.pride.psmindex.search.service.PsmSearchService;
-import uk.ac.ebi.pride.psmindex.search.util.helper.ModificationProvider;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +34,7 @@ public class ViewerControllerImpl {
     private ProteinIdentificationSearchService proteinIdentificationSearchService;
     private PsmSearchService psmSearchService;
 
+    // ToDo: better to throw custom exceptions?
 
     public Protein getProteinData(String proteinID) {
         // the webapp requires a unique protein ID, which is generated as: <assay accession>__<protein accession>
@@ -81,10 +82,10 @@ public class ViewerControllerImpl {
             // infer protein modifications from list of peptides
             inferProteinModifications(resultProtein);
 
-             // ToDo: we don't know the species! Could be provided by search?
+             // ToDo: we don't know the species! Could be provided by search? or remove completely?
             resultProtein.setTaxonID(-1);
 
-            // ToDo: we have no tissue information! get tissue(s) from protein/assay level?
+            // ToDo: we have no tissue information! get tissue(s) from protein/assay level? or remove completely?
         }
 
         return resultProtein;
@@ -166,7 +167,7 @@ public class ViewerControllerImpl {
         } else {
             throw new IllegalStateException("No valid protein sequence available for protein: " + foundProtein.getAccession());
         }
-        resultProtein.setDescription(foundProtein.getDescription().get(0));   // ToDo: define which String is the correct one
+        resultProtein.setDescription(foundProtein.getName());
         return resultProtein;
     }
     private static <T extends Peptide> T mapPsm2WSPeptide(Psm psm, Class<T> clazz) {
