@@ -34,9 +34,7 @@ public class ViewerControllerImpl {
     private ProteinIdentificationSearchService proteinIdentificationSearchService;
     private PsmSearchService psmSearchService;
 
-    // ToDo: better to throw custom exceptions?
-
-    public Protein getProteinData(String proteinID) {
+    public Protein getProteinData(String proteinID) throws InvalidDataException {
         // the webapp requires a unique protein ID, which is generated as: <assay accession>__<protein accession>
         // since this is for internal use only, this could potentially be a PRIDE internal id as well...
         logger.info("Protein " + proteinID + " requested...");
@@ -55,12 +53,12 @@ public class ViewerControllerImpl {
                 return null;
             }
             if (proteins.size() > 1) {
-                throw new IllegalStateException("Non-unique result for protein query with ID: " + proteinID);
+                throw new InvalidDataException("Invalid protein record! Non-unique result for: " + proteinID);
             }
 
             ProteinIdentified foundProtein = proteins.iterator().next();
             if (foundProtein.getSequence() == null || foundProtein.getSequence().length() < 5) {
-                throw new IllegalArgumentException("Illegal protein! No valid sequence present for: " + proteinID);
+                throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
             }
 
             // create a new WS Protein record
@@ -116,6 +114,9 @@ public class ViewerControllerImpl {
         } else {
             // retrieve ALL PSMs for the protein (since there is no search option to further restrict the result by peptide sequence)
             List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
+            if (psms == null || psms.isEmpty()) {
+                return null;
+            }
             // and then filter out the peptides we are not interested in
             List<Psm> filteredPsms = new ArrayList<Psm>();
             for (Psm psm : psms) {
@@ -125,10 +126,6 @@ public class ViewerControllerImpl {
             }
 
             result = mapPsms2WSPeptides(filteredPsms, Peptide.class);
-
-            if (result == null) {
-                throw new IllegalStateException("No PSMs found for id: " + peptideID);
-            }
         }
 
         return new PeptideList(result);
