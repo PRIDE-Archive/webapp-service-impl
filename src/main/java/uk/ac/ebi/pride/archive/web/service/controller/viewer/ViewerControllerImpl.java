@@ -4,8 +4,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.ebi.pride.archive.dataprovider.identification.ModificationProvider;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
+import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
+import uk.ac.ebi.pride.proteinidentificationindex.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.proteinindex.search.model.ProteinIdentified;
-import uk.ac.ebi.pride.proteinindex.search.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 import uk.ac.ebi.pride.psmindex.search.service.PsmSearchService;
 
@@ -48,7 +49,7 @@ public class ViewerControllerImpl {
         if (proteinID.equals(DummyDataCreator.PROTEIN_1_ID)) {
             resultProtein = DummyDataCreator.createDummyProtein1();
         } else { // for all other cases we try to retrieve the real records
-            List<ProteinIdentified> proteins = proteinIdentificationSearchService.findByAccessionAndAssayAccessions(proteinAccession, assayAccession);
+            List<ProteinIdentification> proteins = proteinIdentificationSearchService.findBySubmittedAccessionAndAssayAccession(proteinAccession, assayAccession);
             if (proteins == null || proteins.isEmpty()) {
                 return null;
             }
@@ -56,7 +57,7 @@ public class ViewerControllerImpl {
                 throw new InvalidDataException("Invalid protein record! Non-unique result for: " + proteinID);
             }
 
-            ProteinIdentified foundProtein = proteins.iterator().next();
+            ProteinIdentification foundProtein = proteins.iterator().next();
             if (foundProtein.getSequence() == null || foundProtein.getSequence().length() < 5) {
                 throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
             }
@@ -154,7 +155,7 @@ public class ViewerControllerImpl {
         }
     }
 
-    private static Protein mapProteinIdentifiedToWSProtein(ProteinIdentified foundProtein) {
+    private static Protein mapProteinIdentifiedToWSProtein(ProteinIdentification foundProtein) {
         Protein resultProtein;
         resultProtein = new Protein();
         resultProtein.setAccession(foundProtein.getAccession());
