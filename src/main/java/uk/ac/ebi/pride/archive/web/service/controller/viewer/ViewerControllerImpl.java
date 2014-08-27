@@ -6,7 +6,6 @@ import uk.ac.ebi.pride.archive.dataprovider.identification.ModificationProvider;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
 import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
 import uk.ac.ebi.pride.proteinidentificationindex.search.service.ProteinIdentificationSearchService;
-import uk.ac.ebi.pride.proteinindex.search.model.ProteinIdentified;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 import uk.ac.ebi.pride.psmindex.search.service.PsmSearchService;
 
@@ -23,6 +22,8 @@ import java.util.Map;
 public class ViewerControllerImpl {
 
     private static final Logger logger = LoggerFactory.getLogger(ViewerControllerImpl.class);
+
+    private static final String NEUTRAL_LOSS = "neutral loss";
 
     public ViewerControllerImpl(ProteinIdentificationSearchService proteinIdentificationSearchService, PsmSearchService psmSearchService) {
         this.psmSearchService = psmSearchService;
@@ -209,7 +210,19 @@ public class ViewerControllerImpl {
         }
         List<ModifiedLocation> modifiedLocations = new ArrayList<ModifiedLocation>(0);
         for (ModificationProvider mod : psm.getModifications()) {
-            ModifiedLocation loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition());
+            if (mod.getMainPosition() == null || mod.getMainPosition() < 0) {
+                // we ignore modifications that don't specify a main location
+                continue;
+            }
+            // we ignore neutral loss annotations if there is a main modification accession
+            // in case there is no main modification, but there is a neutral loss annotation
+            // we add the neutral loss as main modification for the given position
+            ModifiedLocation loc;
+            if (mod.getAccession() == null) {
+                loc = new ModifiedLocation(NEUTRAL_LOSS, mod.getMainPosition());
+            } else {
+                loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition());
+            }
             // we ignore peptide terminal modifications
             if (loc.getPosition() > 0 && loc.getPosition() < psm.getPeptideSequence().length()+1) {
                 modifiedLocations.add( loc );
@@ -235,7 +248,11 @@ public class ViewerControllerImpl {
             mappedObject = peptideMatchMap.get(peptideMatchId);
             if (psm.getModifications() != null) {
                 // add the ModificationLodationS, the Peptide will take care of removing duplicated ones
-                mappedObject.getModifiedLocations().addAll(mapPsmModifications2WSPeptideModifiedLocations(psm));
+                try {
+                    mappedObject.getModifiedLocations().addAll(mapPsmModifications2WSPeptideModifiedLocations(psm));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
 
