@@ -221,7 +221,7 @@ public class ViewerControllerImpl {
             if (mod.getAccession() == null) {
                 loc = new ModifiedLocation(NEUTRAL_LOSS, mod.getMainPosition());
             } else {
-                loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition());
+                loc = new ModifiedLocation(mod.getAccession() + " " + mod.getName(), mod.getMainPosition());
             }
             // we ignore peptide terminal modifications
             if (loc.getPosition() > 0 && loc.getPosition() < psm.getPeptideSequence().length()+1) {
