@@ -38,6 +38,7 @@ public class ViewerControllerImpl {
 
     public Protein getProteinData(String proteinID) throws InvalidDataException {
         // the webapp requires a unique protein ID, which is generated as: <assay accession>__<protein accession>
+        // Note: the protein accession is the submitted accession used to identify the protein identification of the respective assay
         // since this is for internal use only, this could potentially be a PRIDE internal id as well...
         logger.info("Protein " + proteinID + " requested...");
 
@@ -45,48 +46,44 @@ public class ViewerControllerImpl {
         String proteinAccession = getProteinAccessionFromProteinID(proteinID);
         logger.debug("Extracted assay accession " + assayAccession + " and protein accession " + proteinAccession);
 
-        Protein resultProtein;
-        // for a specific test case we create a dummy result
-        if (proteinID.equals(DummyDataCreator.PROTEIN_1_ID)) {
-            resultProtein = DummyDataCreator.createDummyProtein1();
-        } else { // for all other cases we try to retrieve the real records
-            List<ProteinIdentification> proteins = proteinIdentificationSearchService.findBySubmittedAccessionAndAssayAccession(proteinAccession, assayAccession);
-            if (proteins == null || proteins.isEmpty()) {
-                return null;
-            }
-            if (proteins.size() > 1) {
-                throw new InvalidDataException("Invalid protein record! Non-unique result for: " + proteinID);
-            }
 
-            ProteinIdentification foundProtein = proteins.iterator().next();
-            if (foundProtein.getSequence() == null || foundProtein.getSequence().length() < 5) {
-                throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
-            }
-
-            // create a new WS Protein record
-            resultProtein = mapProteinIdentifiedToWSProtein(foundProtein);
-            // set the protein ID to uniquely identify this protein record
-            resultProtein.setId(proteinID);
-
-            // now add the peptides to the Protein
-            // retrieve all PSMs to generate the information needed for a Protein record
-            List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
-
-            // create list of 'peptide' objects collapsing PSMs
-//            List<PeptideMatch> peptides = createPeptideMatchesFromPsmList(psms);
-            List<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(psms, PeptideMatch.class);
-            // take into account if the peptide sequence matches the protein sequence at the stated location
-            adjustPeptideProteinMatches(peptides, resultProtein.getSequence());
-            resultProtein.getPeptides().addAll(peptides);
-
-            // infer protein modifications from list of peptides
-            inferProteinModifications(resultProtein);
-
-             // ToDo: we don't know the species! Could be provided by search? or remove completely?
-            resultProtein.setTaxonID(-1);
-
-            // ToDo: we have no tissue information! get tissue(s) from protein/assay level? or remove completely?
+        List<ProteinIdentification> proteins = proteinIdentificationSearchService.findBySubmittedAccessionAndAssayAccession(proteinAccession, assayAccession);
+        if (proteins == null || proteins.isEmpty()) {
+            return null;
         }
+        if (proteins.size() > 1) {
+            throw new InvalidDataException("Invalid protein record! Non-unique result for: " + proteinID);
+        }
+
+        ProteinIdentification foundProtein = proteins.iterator().next();
+        if (foundProtein.getSequence() == null || foundProtein.getSequence().length() < 5) {
+            throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
+        }
+
+        // create a new WS Protein record
+        Protein resultProtein = mapProteinIdentifiedToWSProtein(foundProtein);
+        // set the protein ID to uniquely identify this protein record
+        resultProtein.setId(proteinID);
+
+        // now add the peptides to the Protein
+        // retrieve all PSMs to generate the information needed for a Protein record
+        List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
+
+        // create list of 'peptide' objects collapsing PSMs
+        List<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(psms, PeptideMatch.class);
+        // take into account if the peptide sequence matches the protein sequence at the stated location
+        adjustPeptideProteinMatches(peptides, resultProtein.getSequence());
+        resultProtein.getPeptides().addAll(peptides);
+
+        // infer protein modifications from list of peptides
+        // no longer needed, as modifications are now available from the protein record directly
+        // possible mismatches are ignored
+//            inferProteinModifications(resultProtein);
+
+        // ToDo: we don't know the species! Could be provided by search? or remove completely?
+        resultProtein.setTaxonID(-1);
+
+        // ToDo: we have no tissue information! get tissue(s) from protein/assay level? or remove completely?
 
         return resultProtein;
     }
@@ -159,7 +156,7 @@ public class ViewerControllerImpl {
     private static Protein mapProteinIdentifiedToWSProtein(ProteinIdentification foundProtein) {
         Protein resultProtein;
         resultProtein = new Protein();
-        resultProtein.setAccession(foundProtein.getAccession());
+        resultProtein.setAccession(foundProtein.getSubmittedAccession());
         String sequence = foundProtein.getSequence();
         if (sequence != null && sequence.length() > 5) {
             resultProtein.setSequence(sequence);
@@ -167,6 +164,15 @@ public class ViewerControllerImpl {
             throw new IllegalStateException("No valid protein sequence available for protein: " + foundProtein.getAccession());
         }
         resultProtein.setDescription(foundProtein.getName());
+
+        for (ModificationProvider mod : foundProtein.getModifications()) {
+            // we ignore any modifications that do not have a main location
+            if (mod.getMainPosition() != null) {
+                ModifiedLocation protMod = new ModifiedLocation(mod.getAccession() + mod.getName(), mod.getMainPosition());
+                resultProtein.getModifiedLocations().add(protMod);
+            }
+        }
+
         return resultProtein;
     }
     private static <T extends Peptide> T mapPsm2WSPeptide(Psm psm, Class<T> clazz) {
@@ -270,46 +276,46 @@ public class ViewerControllerImpl {
         return mappedObjects;
     }
 
-    protected static void inferProteinModifications(Protein protein) {
-        // if there are no peptides to possibly infer modifications from, there is nothing to do!
-        if (protein.getPeptides() == null) {
-            return;
-        }
-        // if there is no protein sequence or it seems invalid, we can't proceed with the inference
-        if (protein.getSequence() == null || protein.getSequence().length() < 5) {
-            throw new IllegalArgumentException("Can not infer modifications for protein with invalid sequence: " + protein.getAccession());
-        }
-        if (protein.getPeptides() == null || protein.getPeptides().isEmpty()) {
-            return;
-        }
-
-        // ToDo: aggregate duplicated ModifiedLocationS (i.e. due to multiple peptides)
-        // ToDo: take inconsistent match cases into account! For example:
-        //      peptide sequence does not match protein sequence
-        //      peptide sequence does match the protein sequence, but not on the reported location
-        for (PeptideMatch peptideMatch : protein.getPeptides()) {
-            // if there are no modifications, we move on...
-            if (peptideMatch.getModifiedLocations() == null || peptideMatch.getModifiedLocations().isEmpty()) {
-                continue;
-            }
-            int startPos = protein.getSequence().indexOf(peptideMatch.getSequence());
-            while (startPos != -1) {
-                for (ModifiedLocation modifiedLocation : peptideMatch.getModifiedLocations()) {
-                    // ToDo: handle n-terminal modification (if startPos == 0, e.g. peptide matches at the beginning of the protein)
-                    // excludes n-terminal modification
-                    // ToD; check for c-terminal modifications (they should only be mapped on the end of the protein!)
-                    if (modifiedLocation.getPosition() > 0) {
-                        ModifiedLocation protMod = new ModifiedLocation();
-                        protMod.setPosition(startPos + modifiedLocation.getPosition());
-                        protMod.setModification(modifiedLocation.getModification());
-                        protein.getModifiedLocations().add(protMod);
-                    } // ToDo: what to do in cases where position <= 0 ?
-                }
-                // check if the peptide matches the protein on another location
-                startPos = protein.getSequence().indexOf(peptideMatch.getSequence(), startPos + 1);
-            }
-        }
-    }
+//    protected static void inferProteinModifications(Protein protein) {
+//        // if there are no peptides to possibly infer modifications from, there is nothing to do!
+//        if (protein.getPeptides() == null) {
+//            return;
+//        }
+//        // if there is no protein sequence or it seems invalid, we can't proceed with the inference
+//        if (protein.getSequence() == null || protein.getSequence().length() < 5) {
+//            throw new IllegalArgumentException("Can not infer modifications for protein with invalid sequence: " + protein.getAccession());
+//        }
+//        if (protein.getPeptides() == null || protein.getPeptides().isEmpty()) {
+//            return;
+//        }
+//
+//        // ToDo: aggregate duplicated ModifiedLocationS (i.e. due to multiple peptides)
+//        // ToDo: take inconsistent match cases into account! For example:
+//        //      peptide sequence does not match protein sequence
+//        //      peptide sequence does match the protein sequence, but not on the reported location
+//        for (PeptideMatch peptideMatch : protein.getPeptides()) {
+//            // if there are no modifications, we move on...
+//            if (peptideMatch.getModifiedLocations() == null || peptideMatch.getModifiedLocations().isEmpty()) {
+//                continue;
+//            }
+//            int startPos = protein.getSequence().indexOf(peptideMatch.getSequence());
+//            while (startPos != -1) {
+//                for (ModifiedLocation modifiedLocation : peptideMatch.getModifiedLocations()) {
+//                    // ToDo: handle n-terminal modification (if startPos == 0, e.g. peptide matches at the beginning of the protein)
+//                    // excludes n-terminal modification
+//                    // ToD; check for c-terminal modifications (they should only be mapped on the end of the protein!)
+//                    if (modifiedLocation.getPosition() > 0) {
+//                        ModifiedLocation protMod = new ModifiedLocation();
+//                        protMod.setPosition(startPos + modifiedLocation.getPosition());
+//                        protMod.setModification(modifiedLocation.getModification());
+//                        protein.getModifiedLocations().add(protMod);
+//                    } // ToDo: what to do in cases where position <= 0 ?
+//                }
+//                // check if the peptide matches the protein on another location
+//                startPos = protein.getSequence().indexOf(peptideMatch.getSequence(), startPos + 1);
+//            }
+//        }
+//    }
 
     public static String getAssayAccessionFromProteinID(String proteinID) {
         // convention: <assay accession><double underscore><protein accession>;
