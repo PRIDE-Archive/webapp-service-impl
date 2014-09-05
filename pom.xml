@@ -64,4 +64,10 @@
         </repository>
     </repositories>
 
+    <scm>
+        <connection>scm:svn:https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/trunk</connection>
+        <developerConnection>scm:svn:https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/trunk</developerConnection>
+        <url>https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/trunk</url>
+    </scm>
+
 </project>
