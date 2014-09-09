@@ -229,13 +229,15 @@ public class ViewerControllerImpl {
             } else {
                 loc = new ModifiedLocation(mod.getAccession() + " " + mod.getName(), mod.getMainPosition());
             }
-            // we ignore peptide terminal modifications
-            if (loc.getPosition() > 0 && loc.getPosition() < psm.getPeptideSequence().length()+1) {
                 modifiedLocations.add( loc );
-            }
         }
         return modifiedLocations;
     }
+
+    // This method is similar to the method mapPsms2WSPeptides mapping Psm objects to Peptide objects,
+    // with two major differences:
+    // a) it collapses peptides with the same sequence and start position and
+    // b) it will remove modifications on C/N-terminal.
     private static <T extends Peptide> List<T> mapPsms2WSPeptidesFiltered(List<Psm> psms, Class<T> clazz) {
         Map<String, T> peptideMatchMap = new HashMap<String, T>();
 
@@ -247,7 +249,10 @@ public class ViewerControllerImpl {
             String peptideMatchId = psm.getPeptideSequence() + ":" + psm.getStartPosition();
             // create a new record one does not already exist
             if ( !peptideMatchMap.containsKey(peptideMatchId) ) {
-                peptideMatchMap.put(peptideMatchId, mapPsm2WSPeptide(psm, clazz));
+                T pep = mapPsm2WSPeptide(psm, clazz);
+                // clear all modifications, as we add them new skipping terminal modifications
+                pep.getModifiedLocations().clear();
+                peptideMatchMap.put(peptideMatchId, pep);
             }
 
             // add cumulative data (for now: modifications) to the record
@@ -255,7 +260,14 @@ public class ViewerControllerImpl {
             if (psm.getModifications() != null) {
                 // add the ModificationLodationS, the Peptide will take care of removing duplicated ones
                 try {
-                    mappedObject.getModifiedLocations().addAll(mapPsmModifications2WSPeptideModifiedLocations(psm));
+                    // add modifications skipping terminal modifications
+                    for (ModifiedLocation mod : mapPsmModifications2WSPeptideModifiedLocations(psm)) {
+                        // if the modification is within the peptide sequence, e.g not a terminal modification
+                        // we add the modification, otherwise we skip it
+                        if (mod.getPosition() > 0 && mod.getPosition() < psm.getPeptideSequence().length() +1) {
+                            mappedObject.getModifiedLocations().add(mod);
+                        }
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
