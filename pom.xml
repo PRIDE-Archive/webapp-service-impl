@@ -37,7 +37,7 @@
         <dependency>
             <groupId>uk.ac.ebi.pride</groupId>
             <artifactId>protein-identification-index-search</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>0.1.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

@@ -56,8 +56,10 @@ public class ViewerControllerImpl {
         }
 
         ProteinIdentification foundProtein = proteins.iterator().next();
-        if (foundProtein.getSequence() == null || foundProtein.getSequence().length() < 5) {
-            throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
+        if (foundProtein.getSubmittedSequence() == null || foundProtein.getSubmittedSequence().length() < 5) {
+            if (foundProtein.getInferredSequence() == null || foundProtein.getInferredSequence().length() < 5) {
+                throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
+            }
         }
 
         // create a new WS Protein record
@@ -155,9 +157,16 @@ public class ViewerControllerImpl {
 
     private static Protein mapProteinIdentifiedToWSProtein(ProteinIdentification foundProtein) {
         Protein resultProtein;
+        String sequence;
+
         resultProtein = new Protein();
         resultProtein.setAccession(foundProtein.getSubmittedAccession());
-        String sequence = foundProtein.getSequence();
+
+        if (foundProtein.getSubmittedSequence() != null && foundProtein.getSubmittedSequence().length() < 5)
+            sequence = foundProtein.getSubmittedSequence();
+        else
+            sequence = foundProtein.getInferredSequence();
+
         if (sequence != null && sequence.length() > 5) {
             resultProtein.setSequence(sequence);
         } else {
@@ -168,13 +177,14 @@ public class ViewerControllerImpl {
         for (ModificationProvider mod : foundProtein.getModifications()) {
             // we ignore any modifications that do not have a main location
             if (mod.getMainPosition() != null) {
-                ModifiedLocation protMod = new ModifiedLocation(mod.getAccession() + mod.getName(), mod.getMainPosition());
+                ModifiedLocation protMod = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition());
                 resultProtein.getModifiedLocations().add(protMod);
             }
         }
 
         return resultProtein;
     }
+
     private static <T extends Peptide> T mapPsm2WSPeptide(Psm psm, Class<T> clazz) {
         if (psm == null) { return null; }
 
@@ -227,7 +237,7 @@ public class ViewerControllerImpl {
             if (mod.getAccession() == null) {
                 loc = new ModifiedLocation(NEUTRAL_LOSS, mod.getMainPosition());
             } else {
-                loc = new ModifiedLocation(mod.getAccession() + " " + mod.getName(), mod.getMainPosition());
+                loc = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition());
             }
                 modifiedLocations.add( loc );
         }
