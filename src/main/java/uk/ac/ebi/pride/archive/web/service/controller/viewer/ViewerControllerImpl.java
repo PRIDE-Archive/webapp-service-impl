@@ -1,18 +1,18 @@
 package uk.ac.ebi.pride.archive.web.service.controller.viewer;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.ebi.pride.archive.dataprovider.identification.ModificationProvider;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
+import uk.ac.ebi.pride.archive.web.service.model.viewer.Spectrum;
 import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
 import uk.ac.ebi.pride.proteinidentificationindex.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 import uk.ac.ebi.pride.psmindex.search.service.PsmSearchService;
+import uk.ac.ebi.pride.spectrumindex.search.service.SpectrumSearchService;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author Florian Reisinger
@@ -25,16 +25,20 @@ public class ViewerControllerImpl {
 
     private static final String NEUTRAL_LOSS = "neutral loss";
 
-    public ViewerControllerImpl(ProteinIdentificationSearchService proteinIdentificationSearchService, PsmSearchService psmSearchService) {
+
+    private ProteinIdentificationSearchService proteinIdentificationSearchService;
+    private PsmSearchService psmSearchService;
+    private SpectrumSearchService spectrumSearchService;
+
+    public ViewerControllerImpl(ProteinIdentificationSearchService proteinIdentificationSearchService, PsmSearchService psmSearchService, SpectrumSearchService spectrumSearchService) {
         this.psmSearchService = psmSearchService;
         this.proteinIdentificationSearchService = proteinIdentificationSearchService;
+        this.spectrumSearchService = spectrumSearchService;
     }
 
     protected ViewerControllerImpl() {
     }
 
-    private ProteinIdentificationSearchService proteinIdentificationSearchService;
-    private PsmSearchService psmSearchService;
 
     public Protein getProteinData(String proteinID) throws InvalidDataException {
         // the webapp requires a unique protein ID, which is generated as: <assay accession>__<protein accession>
@@ -49,15 +53,18 @@ public class ViewerControllerImpl {
 
         List<ProteinIdentification> proteins = proteinIdentificationSearchService.findBySubmittedAccessionAndAssayAccession(proteinAccession, assayAccession);
         if (proteins == null || proteins.isEmpty()) {
+            logger.debug("No protein found!");
             return null;
         }
         if (proteins.size() > 1) {
+            logger.debug("More than one protein found!");
             throw new InvalidDataException("Invalid protein record! Non-unique result for: " + proteinID);
         }
 
         ProteinIdentification foundProtein = proteins.iterator().next();
         if (foundProtein.getSubmittedSequence() == null || foundProtein.getSubmittedSequence().length() < 5) {
             if (foundProtein.getInferredSequence() == null || foundProtein.getInferredSequence().length() < 5) {
+                logger.debug("No valid protein record!");
                 throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
             }
         }
@@ -86,6 +93,8 @@ public class ViewerControllerImpl {
         resultProtein.setTaxonID(-1);
 
         // ToDo: we have no tissue information! get tissue(s) from protein/assay level? or remove completely?
+
+        logger.debug("Returning protein Id=" + resultProtein.getId() + " Accession=" + resultProtein.getAccession());
 
         return resultProtein;
     }
@@ -133,6 +142,45 @@ public class ViewerControllerImpl {
     }
 
 
+    public Spectrum getSpectrumData(String variationId) {
+        logger.info("Request for Spectrum for variation " + variationId);
+        // retrieve the Spectrum for a particular peptide sequence of a particular protein
+
+        String assayAccession = getAssayAccessionFromVariationID(variationId);
+        String proteinAccession = getProteinAccessionFromVariationID(variationId);
+        String reportedId = getReportedIdFromVariationId(variationId);
+        String peptideSequence = getPeptideSequenceFromVariationId(variationId);
+        logger.debug("Variation ID decoded into: assay=" + assayAccession + " protein=" + proteinAccession + " seq=" + peptideSequence + " reportedId=" + reportedId);
+
+        List<Psm> psms = psmSearchService.findByReportedIdAndAssayAccessionAndProteinAccessionAndPeptideSequence(reportedId, assayAccession, proteinAccession, peptideSequence);
+
+        Spectrum spectrum = null;
+        if (psms != null && psms.size()>0) {
+            Psm psm = psms.get(0);
+            logger.debug("Found PSM=" + psm.getId());
+            List<uk.ac.ebi.pride.spectrumindex.search.model.Spectrum> spectrumSearchResult = spectrumSearchService.findById(psm.getSpectrumId());
+            if (spectrumSearchResult != null && spectrumSearchResult.size()>0) {
+                uk.ac.ebi.pride.spectrumindex.search.model.Spectrum sp = spectrumSearchResult.get(0);
+                logger.debug("Found Spectrum=" + sp.getId());
+                spectrum = new Spectrum();
+                spectrum.setId(variationId);
+                spectrum.setPeaks(SpectrumPeak.getAsSpectrumPeakList(sp.getPeaksMz(), sp.getPeaksIntensities()));
+                spectrum.setMzStart(
+                        Collections.min(
+                                Arrays.asList( ArrayUtils.toObject(sp.getPeaksMz()) )
+                        ).doubleValue()
+                );
+                spectrum.setMzStop(
+                        Collections.max(
+                                Arrays.asList( ArrayUtils.toObject(sp.getPeaksMz()) )
+                        ).doubleValue()
+                );
+            }
+        }
+
+        if (spectrum==null) logger.debug("Found NO Spectrum!");
+        return spectrum;
+    }
 
     /**
      * Highjack the uniqueness flag to assign a positive value if the peptide sequence matches
@@ -338,6 +386,46 @@ public class ViewerControllerImpl {
 //            }
 //        }
 //    }
+
+    public static String getPeptideSequenceFromVariationId(String variationId) {
+        // convention: <assay accession><double underscore><protein accession><double underscore><peptide_sequence><double underscore><reported_id>;
+        // example   : variance=8128__P02768__DAHKSEVAHR__1417
+        String[] parts = variationId.split("__");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("A valid variation ID need to have four parts separated by double underscore!");
+        }
+        return parts[2];
+    }
+
+    public static String getReportedIdFromVariationId(String variationId) {
+        // convention: <assay accession><double underscore><protein accession><double underscore><peptide_sequence><double underscore><reported_id>;
+        // example   : variance=8128__P02768__DAHKSEVAHR__1417
+        String[] parts = variationId.split("__");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("A valid variation ID need to have four parts separated by double underscore!");
+        }
+        return parts[3];
+    }
+
+    public static String getProteinAccessionFromVariationID(String variationId) {
+        // convention: <assay accession><double underscore><protein accession><double underscore><peptide_sequence><double underscore><reported_id>;
+        // example   : variance=8128__P02768__DAHKSEVAHR__1417
+        String[] parts = variationId.split("__");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("A valid variation ID need to have four parts separated by double underscore!");
+        }
+        return parts[1];
+    }
+
+    public static String getAssayAccessionFromVariationID(String variationId) {
+        // convention: <assay accession><double underscore><protein accession><double underscore><peptide_sequence><double underscore><reported_id>;
+        // example   : variance=8128__P02768__DAHKSEVAHR__1417
+        String[] parts = variationId.split("__");
+        if (parts.length != 4) {
+            throw new IllegalArgumentException("A valid variation ID need to have four parts separated by double underscore!");
+        }
+        return parts[0];
+    }
 
     public static String getAssayAccessionFromProteinID(String proteinID) {
         // convention: <assay accession><double underscore><protein accession>;

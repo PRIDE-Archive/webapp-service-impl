@@ -39,6 +39,12 @@
             <artifactId>protein-identification-index-search</artifactId>
             <version>0.1.1-SNAPSHOT</version>
         </dependency>
+        <!-- Spectrum search library -->
+        <dependency>
+            <groupId>uk.ac.ebi.pride</groupId>
+            <artifactId>spectrum-index-search</artifactId>
+            <version>0.1.1-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit-dep</artifactId>
