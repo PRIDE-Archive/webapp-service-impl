@@ -16,6 +16,7 @@ public class Protein {
     private String accession;
     private int taxonID;
     private String sequence;
+    private Boolean isInferredSequence;
     private String description;
     private Set<ModifiedLocation> modifiedLocations = new TreeSet<ModifiedLocation>(new ModifiedLocationPositionComparator());
     private List<String> tissues = new ArrayList<String>();
@@ -53,6 +54,14 @@ public class Protein {
 
     public void setSequence(String sequence) {
         this.sequence = sequence;
+    }
+
+    public Boolean getIsInferredSequence() {
+        return isInferredSequence;
+    }
+
+    public void setIsInferredSequence(Boolean isInferredSequence) {
+        this.isInferredSequence = isInferredSequence;
     }
 
     public String getDescription() {

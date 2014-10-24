@@ -19,6 +19,7 @@ public class Peptide {
     private Set<ModifiedLocation> modifiedLocations = new TreeSet<ModifiedLocation>(new ModifiedLocationPositionComparator());
     private List<String> tissues = new ArrayList<String>(0);
     private List<String> assays = new ArrayList<String>(1);
+    private String scores;
 
     public String getId() {
         return id;
@@ -76,4 +77,13 @@ public class Peptide {
     public void setAssays(List<String> assays) {
         this.assays = assays;
     }
+
+    public String getScores() {
+        return scores;
+    }
+
+    public void setScores(String scores) {
+        this.scores = scores;
+    }
+
 }
