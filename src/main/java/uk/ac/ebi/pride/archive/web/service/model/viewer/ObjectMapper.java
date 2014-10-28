@@ -6,6 +6,7 @@ import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentifica
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -120,6 +121,22 @@ public class ObjectMapper {
             modifiedLocations.add( loc );
         }
         return modifiedLocations;
+    }
+
+    public static Spectrum mapIndexSpectrum2WSSpectrum(uk.ac.ebi.pride.spectrumindex.search.model.Spectrum spectrum) {
+        if (spectrum == null) {
+            return null;
+        }
+        Spectrum mappedObject = new Spectrum();
+        mappedObject.setId(spectrum.getId());
+        mappedObject.setPeaks(SpectrumPeak.getAsSpectrumPeakList(spectrum.getPeaksMz(), spectrum.getPeaksIntensities()));
+
+        Arrays.sort(spectrum.getPeaksMz()); // make sure the mz values are sorted
+        double minMZ = spectrum.getPeaksMz()[0]; // take the first value as the minimal mz value
+        mappedObject.setMzStart(minMZ);
+        double maxMZ = spectrum.getPeaksMz()[spectrum.getPeaksMz().length-1]; // take the last value as maximal mz value
+        mappedObject.setMzStop(maxMZ);
+        return mappedObject;
     }
 
 

@@ -1,9 +1,9 @@
 package uk.ac.ebi.pride.archive.web.service.controller.viewer;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
+import uk.ac.ebi.pride.archive.web.service.util.SearchUtils;
 import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
 import uk.ac.ebi.pride.proteinidentificationindex.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
@@ -147,7 +147,7 @@ public class ViewerControllerImpl {
     }
 
 
-    public Spectrum getSpectrumData(String variationId) {
+    public Spectrum getSpectrumData(String variationId) throws InvalidDataException {
         logger.info("Request for Spectrum for variation " + variationId);
         // retrieve the Spectrum for a particular peptide sequence of a particular protein
 
@@ -159,36 +159,31 @@ public class ViewerControllerImpl {
 
         List<Psm> psms = psmSearchService.findByReportedIdAndAssayAccessionAndProteinAccessionAndPeptideSequence(reportedId, assayAccession, proteinAccession, peptideSequence);
 
-        Spectrum spectrum = null;
-        if (psms != null && psms.size()>0) {
-            Psm psm = psms.get(0);
-            logger.debug("Found PSM=" + psm.getId());
-            List<uk.ac.ebi.pride.spectrumindex.search.model.Spectrum> spectrumSearchResult = spectrumSearchService.findById(psm.getSpectrumId());
-            if (spectrumSearchResult != null && spectrumSearchResult.size()>0) {
-                uk.ac.ebi.pride.spectrumindex.search.model.Spectrum sp = spectrumSearchResult.get(0);
-                logger.debug("Found Spectrum=" + sp.getId());
-                spectrum = new Spectrum();
-                spectrum.setId(variationId);
-                spectrum.setPeaks(SpectrumPeak.getAsSpectrumPeakList(sp.getPeaksMz(), sp.getPeaksIntensities()));
-                spectrum.setMzStart(
-                        Collections.min(
-                                Arrays.asList( ArrayUtils.toObject(sp.getPeaksMz()) )
-                        ).doubleValue()
-                );
-                spectrum.setMzStop(
-                        Collections.max(
-                                Arrays.asList( ArrayUtils.toObject(sp.getPeaksMz()) )
-                        ).doubleValue()
-                );
-            }
+        // we assert the we have one and only one PSM for the provided ID
+        if (psms == null || psms.size() != 1) {
+            throw new InvalidDataException("No unique PSM found for unique identifier: " + variationId);
         }
 
-        if (spectrum==null) logger.debug("Found NO Spectrum!");
+        Psm psm = psms.get(0);
+        logger.debug("Found PSM=" + psm.getId());
+        String queryID = SearchUtils.escapeQueryChars(psm.getSpectrumId());
+        List<uk.ac.ebi.pride.spectrumindex.search.model.Spectrum> spectrumSearchResult = spectrumSearchService.findById(queryID);
+
+        // we assert that we have one and only one spectrum for the provided spectrum ID
+        if (spectrumSearchResult == null || spectrumSearchResult.size() != 1) {
+            throw new InvalidDataException("No unique spectra data for spectrum with ID: " + psm.getSpectrumId() + " for PSM: " + psm.getId() + " and variant ID: " + variationId);
+        }
+
+        uk.ac.ebi.pride.spectrumindex.search.model.Spectrum sp = spectrumSearchResult.get(0);
+        logger.debug("Found Spectrum=" + sp.getId());
+
+        // convert the spectrum from the index into a spectrum object of the web service
+        Spectrum spectrum = ObjectMapper.mapIndexSpectrum2WSSpectrum(sp);
+        spectrum.setId(variationId); // overwrite the spectrum ID to use the ID system of the webapp
+
+
         return spectrum;
     }
-
-
-
 
 
 //    protected static void inferProteinModifications(Protein protein) {
