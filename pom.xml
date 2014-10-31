@@ -32,18 +32,18 @@
         <dependency>
             <groupId>uk.ac.ebi.pride</groupId>
             <artifactId>psm-index-search</artifactId>
-            <version>0.1.5-SNAPSHOT</version>
+            <version>0.1.5</version>
         </dependency>
         <dependency>
             <groupId>uk.ac.ebi.pride</groupId>
             <artifactId>protein-identification-index-search</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>0.1.1</version>
         </dependency>
         <!-- Spectrum search library -->
         <dependency>
             <groupId>uk.ac.ebi.pride</groupId>
             <artifactId>spectrum-index-search</artifactId>
-            <version>0.1.1-SNAPSHOT</version>
+            <version>0.1.1</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
