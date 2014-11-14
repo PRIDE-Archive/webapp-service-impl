@@ -76,6 +76,9 @@ public class ObjectMapper {
             sb.append(paramProvider.getValue());
             sb.append(";");
         }
+        if (sb.length() > 1) {
+            sb.deleteCharAt(sb.length() - 1); // remove the last ';'
+        }
         mappedObject.setScores(sb.toString());
         if (psm.getModifications() != null) {
             mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm.getModifications()));
