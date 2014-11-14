@@ -23,7 +23,7 @@ public class ObjectMapper {
         resultProtein = new Protein();
         resultProtein.setAccession(foundProtein.getSubmittedAccession());
 
-        if (foundProtein.getSubmittedSequence() != null && foundProtein.getSubmittedSequence().length() < 5) {
+        if (foundProtein.getSubmittedSequence() != null && foundProtein.getSubmittedSequence().length() > 5) {
             sequence = foundProtein.getSubmittedSequence();
             resultProtein.setIsInferredSequence(Boolean.FALSE);
         } else {
