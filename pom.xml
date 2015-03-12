@@ -11,7 +11,7 @@
     <groupId>uk.ac.ebi.pride.archive</groupId>
     <artifactId>webapp-service-impl</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.5-SNAPSHOT</version>
+    <version>0.1.5</version>
 
     <!--
          To build the project:
@@ -70,9 +70,9 @@
     </repositories>
 
     <scm>
-        <connection>scm:svn:https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/trunk</connection>
-        <developerConnection>scm:svn:https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/trunk</developerConnection>
-        <url>https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/trunk</url>
+        <connection>scm:svn:https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/tags/webapp-service-impl-0.1.5</connection>
+        <developerConnection>scm:svn:https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/tags/webapp-service-impl-0.1.5</developerConnection>
+        <url>https://svn.ebi.ac.uk/pride-repo/pride-archive/webapp-service-impl/tags/webapp-service-impl-0.1.5</url>
     </scm>
 
 </project>
