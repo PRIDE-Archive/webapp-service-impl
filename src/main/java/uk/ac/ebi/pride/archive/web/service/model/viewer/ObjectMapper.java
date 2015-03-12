@@ -14,7 +14,7 @@ import java.util.List;
  */
 public class ObjectMapper {
 
-    private static final String NEUTRAL_LOSS = "neutral loss";
+    private static final String NEUTRAL_LOSS = "Neutral loss";
 
     public static Protein mapProteinIdentifiedToWSProtein(ProteinIdentification foundProtein) {
         Protein resultProtein;
@@ -119,7 +119,12 @@ public class ObjectMapper {
             if (mod.getAccession() == null) {
                 loc = new ModifiedLocation(NEUTRAL_LOSS, mod.getMainPosition());
             } else {
-                loc = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition());
+                if(mod.getName()==null){
+                    loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition());
+                }
+                else {
+                    loc = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition());
+                }
             }
             modifiedLocations.add( loc );
         }
