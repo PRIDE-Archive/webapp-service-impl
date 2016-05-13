@@ -36,8 +36,8 @@ public class DummyDataCreator {
     private static final String PEP_1_SEQUENCE = "TCVADESAENCDKSLHTLFGD";
     private static final String PEP_2_SEQUENCE = "DVFLGMFLYEYARRHPDYSVVLLLRLAK";
     private static final String PEP_3_SEQUENCE = "CCAAADNHECYAK";
-    private static final ModifiedLocation PEP_1_MOD = new ModifiedLocation("OXIDATION", 5);
-    private static final ModifiedLocation PEP_2_MOD = new ModifiedLocation("PHOSPHORYLATION", 7);
+    private static final ModifiedLocation PEP_1_MOD = new ModifiedLocation("OXIDATION", 5, 13.0);
+    private static final ModifiedLocation PEP_2_MOD = new ModifiedLocation("PHOSPHORYLATION", 7, 20.0);
     private static final int PROT_1_PEP_1_POS = 76;
     private static final int PROT_1_PEP_2_POS = 348;
     private static final int PROT_1_PEP_3_POS = 384;
@@ -69,8 +69,8 @@ public class DummyDataCreator {
         protein.setPeptides(list);
 
         List<ModifiedLocation> prot1Modifications = new ArrayList<ModifiedLocation>(2);
-        prot1Modifications.add(new ModifiedLocation(PEP_1_MOD.getModification(), PROT_1_PEP_1_POS + PEP_1_MOD.getPosition() - 1));
-        prot1Modifications.add(new ModifiedLocation(PEP_2_MOD.getModification(), PROT_1_PEP_2_POS + PEP_2_MOD.getPosition() - 1));
+        prot1Modifications.add(new ModifiedLocation(PEP_1_MOD.getModification(), PROT_1_PEP_1_POS + PEP_1_MOD.getPosition() - 1, PEP_1_MOD.getMass()));
+        prot1Modifications.add(new ModifiedLocation(PEP_2_MOD.getModification(), PROT_1_PEP_2_POS + PEP_2_MOD.getPosition() - 1, PEP_2_MOD.getMass()));
         protein.setModifiedLocations(prot1Modifications);
 
         protein.setTaxonID(PROT_1_TAXID);

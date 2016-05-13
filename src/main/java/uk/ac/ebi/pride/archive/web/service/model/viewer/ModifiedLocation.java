@@ -9,11 +9,13 @@ public class ModifiedLocation {
 
     private int position;
     private String modification;
+    private double mass;
 
     public ModifiedLocation() {}
-    public ModifiedLocation(String modification, int position) {
+    public ModifiedLocation(String modification, int position, double mass) {
         this.modification = modification;
         this.position = position;
+        this.mass = mass;
     }
 
     public int getPosition() {
@@ -30,6 +32,14 @@ public class ModifiedLocation {
 
     public void setModification(String modification) {
         this.modification = modification;
+    }
+
+    public double getMass() {
+        return mass;
+    }
+
+    public void setMass(double mass) {
+        this.mass = mass;
     }
 
     @Override

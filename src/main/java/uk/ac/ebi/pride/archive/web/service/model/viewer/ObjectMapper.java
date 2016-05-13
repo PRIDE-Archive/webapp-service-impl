@@ -4,6 +4,8 @@ import uk.ac.ebi.pride.archive.dataprovider.identification.ModificationProvider;
 import uk.ac.ebi.pride.archive.dataprovider.param.CvParamProvider;
 import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
+import uk.ac.ebi.pridemod.ModReader;
+import uk.ac.ebi.pridemod.model.PTM;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +17,8 @@ import java.util.List;
 public class ObjectMapper {
 
     private static final String NEUTRAL_LOSS = "Neutral loss";
+    private static final ModReader modReader = ModReader.getInstance();
+
 
     public static Protein mapProteinIdentifiedToWSProtein(ProteinIdentification foundProtein) {
         Protein resultProtein;
@@ -41,7 +45,13 @@ public class ObjectMapper {
         for (ModificationProvider mod : foundProtein.getModifications()) {
             // we ignore any modifications that do not have a main location
             if (mod.getMainPosition() != null) {
-                ModifiedLocation protMod = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition());
+                PTM ptm = modReader.getPTMbyAccession(mod.getAccession());
+                double mass = 0;
+
+                if(ptm!= null){
+                    mass = ptm.getMonoDeltaMass();
+                }
+                ModifiedLocation protMod = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition(), mass);
                 resultProtein.getModifiedLocations().add(protMod);
             }
         }
@@ -116,17 +126,22 @@ public class ObjectMapper {
             // in case there is no main modification, but there is a neutral loss annotation
             // we add the neutral loss as main modification for the given position
             ModifiedLocation loc;
+            double mass = 0;
             if (mod.getAccession() == null) {
-                loc = new ModifiedLocation(NEUTRAL_LOSS, mod.getMainPosition());
+//                TODO look for a better mass for neutral loss
+                loc = new ModifiedLocation(NEUTRAL_LOSS, mod.getMainPosition(), mass);
             } else {
-                if(mod.getName()==null){
-                    loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition());
+                PTM ptm = modReader.getPTMbyAccession(mod.getAccession());
+                if(ptm!= null){
+                    mass = ptm.getMonoDeltaMass();
                 }
-                else {
-                    loc = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition());
+                if (mod.getName() == null) {
+                    loc = new ModifiedLocation(mod.getAccession(), mod.getMainPosition(), mass);
+                } else {
+                    loc = new ModifiedLocation(mod.getName() + " (" + mod.getAccession() + ")", mod.getMainPosition(), mass);
                 }
             }
-            modifiedLocations.add( loc );
+            modifiedLocations.add(loc);
         }
         return modifiedLocations;
     }
@@ -138,12 +153,16 @@ public class ObjectMapper {
         Spectrum mappedObject = new Spectrum();
         mappedObject.setId(spectrum.getId());
         mappedObject.setPeaks(SpectrumPeak.getAsSpectrumPeakList(spectrum.getPeaksMz(), spectrum.getPeaksIntensities()));
+        mappedObject.setPrecursorCharge(spectrum.getPrecursorCharge());
+        mappedObject.setPrecursorMz(spectrum.getPrecursorMz());
+        mappedObject.setPrecursorIntensity(spectrum.getPrecursorIntensity());
 
         Arrays.sort(spectrum.getPeaksMz()); // make sure the mz values are sorted
         double minMZ = spectrum.getPeaksMz()[0]; // take the first value as the minimal mz value
-        mappedObject.setMzStart(minMZ);
         double maxMZ = spectrum.getPeaksMz()[spectrum.getPeaksMz().length-1]; // take the last value as maximal mz value
         mappedObject.setMzStop(maxMZ);
+        mappedObject.setMzStart(minMZ);
+
         return mappedObject;
     }
 

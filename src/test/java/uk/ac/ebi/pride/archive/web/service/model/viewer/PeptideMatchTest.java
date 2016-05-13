@@ -34,20 +34,20 @@ public class PeptideMatchTest {
         pepArray[9] = new PeptideMatch(0, "PEPTIDE"); // same as 8
         // same non-matching peptide, different modifications
         pepArray[10] = new PeptideMatch(0, "PEPTIDE");
-        pepArray[10].getModifiedLocations().add(new ModifiedLocation("Oxidation", 3));
+        pepArray[10].getModifiedLocations().add(new ModifiedLocation("Oxidation", 3, 13.0));
         // non matching peptide second case
         pepArray[11] = new PeptideMatch(-1, "PEPTIDE"); // same as 8 & 9
         pepArray[12] = new PeptideMatch(-1, "PEPTIDE"); // same as 10 since same ModifiedLocation
-        pepArray[12].getModifiedLocations().add(new ModifiedLocation("Oxidation", 3));
+        pepArray[12].getModifiedLocations().add(new ModifiedLocation("Oxidation", 3, 13.0));
         pepArray[13] = new PeptideMatch(-1, "PEPTIDE"); // new peptide since ModifiedLocation on different position
-        pepArray[13].getModifiedLocations().add(new ModifiedLocation("Oxidation", 2));
+        pepArray[13].getModifiedLocations().add(new ModifiedLocation("Oxidation", 2, 13.0));
 
         pepArray[14] = new PeptideMatch(-1, "PEPTIDE"); // new peptide since ModifiedLocation with different mod
-        pepArray[14].getModifiedLocations().add(new ModifiedLocation("DiOxidation", 3));
+        pepArray[14].getModifiedLocations().add(new ModifiedLocation("DiOxidation", 3, 26.0));
 
         pepArray[15] = new PeptideMatch(-1, "PEPTIDE"); // new peptide since different number of ModifiedLocationS
-        pepArray[15].getModifiedLocations().add(new ModifiedLocation("DiOxidation", 2));
-        pepArray[15].getModifiedLocations().add(new ModifiedLocation("DiOxidation", 3));
+        pepArray[15].getModifiedLocations().add(new ModifiedLocation("DiOxidation", 2, 26.0));
+        pepArray[15].getModifiedLocations().add(new ModifiedLocation("DiOxidation", 3, 26.0));
     }
 
     @Test

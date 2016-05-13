@@ -3,7 +3,6 @@ package uk.ac.ebi.pride.archive.web.service.controller.viewer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
-import uk.ac.ebi.pride.archive.web.service.util.SearchUtils;
 import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
 import uk.ac.ebi.pride.proteinidentificationindex.search.service.ProteinIdentificationSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
@@ -166,19 +165,19 @@ public class ViewerControllerImpl {
 
         Psm psm = psms.get(0);
         logger.debug("Found PSM=" + psm.getId());
-        String queryID = SearchUtils.escapeQueryChars(psm.getSpectrumId());
-        List<uk.ac.ebi.pride.spectrumindex.search.model.Spectrum> spectrumSearchResult = spectrumSearchService.findById(queryID);
+
+        //For mongodb escaping is not needed
+        uk.ac.ebi.pride.spectrumindex.search.model.Spectrum spectrumSearchResult = spectrumSearchService.findById(psm.getSpectrumId());
 
         // we assert that we have one and only one spectrum for the provided spectrum ID
-        if (spectrumSearchResult == null || spectrumSearchResult.size() != 1) {
-            throw new InvalidDataException("No unique spectra data for spectrum with ID: " + psm.getSpectrumId() + " for PSM: " + psm.getId() + " and variant ID: " + variationId);
+        if (spectrumSearchResult == null) {
+            throw new InvalidDataException("No spectra data for spectrum with ID: " + psm.getSpectrumId() + " for PSM: " + psm.getId() + " and variant ID: " + variationId);
         }
 
-        uk.ac.ebi.pride.spectrumindex.search.model.Spectrum sp = spectrumSearchResult.get(0);
-        logger.debug("Found Spectrum=" + sp.getId());
+        logger.debug("Found Spectrum=" + spectrumSearchResult);
 
         // convert the spectrum from the index into a spectrum object of the web service
-        Spectrum spectrum = ObjectMapper.mapIndexSpectrum2WSSpectrum(sp);
+        Spectrum spectrum = ObjectMapper.mapIndexSpectrum2WSSpectrum(spectrumSearchResult);
         spectrum.setId(variationId); // overwrite the spectrum ID to use the ID system of the webapp
 
 

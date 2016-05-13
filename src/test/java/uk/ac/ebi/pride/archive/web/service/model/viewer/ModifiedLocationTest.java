@@ -20,16 +20,16 @@ public class ModifiedLocationTest {
     @Before
     public void setup() {
         modArray = new ModifiedLocation[10];
-        modArray[0] = new ModifiedLocation("Phosphorylation", 5);
-        modArray[1] = new ModifiedLocation("Oxidation", 5);
-        modArray[2] = new ModifiedLocation("Oxidation", 5); // duplicated entry
-        modArray[3] = new ModifiedLocation("Oxidation", 6);
-        modArray[4] = new ModifiedLocation("Oxidation", 1);
-        modArray[5] = new ModifiedLocation("DiOxidation", 5);
-        modArray[6] = new ModifiedLocation("DiOxidation", 6);
-        modArray[7] = new ModifiedLocation("DiOxidation", 8);
-        modArray[8] = new ModifiedLocation("DiOxidation", 2);
-        modArray[9] = new ModifiedLocation("DiOxidation", 5); // duplicated entry
+        modArray[0] = new ModifiedLocation("Phosphorylation", 5, 20.0);
+        modArray[1] = new ModifiedLocation("Oxidation", 5, 13.0);
+        modArray[2] = new ModifiedLocation("Oxidation", 5, 13.0); // duplicated entry
+        modArray[3] = new ModifiedLocation("Oxidation", 6, 13.0);
+        modArray[4] = new ModifiedLocation("Oxidation", 1, 13.0);
+        modArray[5] = new ModifiedLocation("DiOxidation", 5, 26.0);
+        modArray[6] = new ModifiedLocation("DiOxidation", 6, 26.0);
+        modArray[7] = new ModifiedLocation("DiOxidation", 8, 26.0);
+        modArray[8] = new ModifiedLocation("DiOxidation", 2, 26.0);
+        modArray[9] = new ModifiedLocation("DiOxidation", 5, 26.0); // duplicated entry
     }
 
     @Test
