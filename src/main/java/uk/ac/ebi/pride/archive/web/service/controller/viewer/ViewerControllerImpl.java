@@ -3,8 +3,12 @@ package uk.ac.ebi.pride.archive.web.service.controller.viewer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.ac.ebi.pride.archive.web.service.model.viewer.*;
+import uk.ac.ebi.pride.proteinidentificationindex.mongo.search.model.MongoProteinIdentification;
+import uk.ac.ebi.pride.proteinidentificationindex.mongo.search.service.MongoProteinIdentificationSearchService;
 import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
 import uk.ac.ebi.pride.proteinidentificationindex.search.service.ProteinIdentificationSearchService;
+import uk.ac.ebi.pride.psmindex.mongo.search.model.MongoPsm;
+import uk.ac.ebi.pride.psmindex.mongo.search.service.MongoPsmSearchService;
 import uk.ac.ebi.pride.psmindex.search.model.Psm;
 import uk.ac.ebi.pride.psmindex.search.service.PsmSearchService;
 import uk.ac.ebi.pride.spectrumindex.search.service.SpectrumSearchService;
@@ -24,11 +28,19 @@ public class ViewerControllerImpl {
 
     private ProteinIdentificationSearchService proteinIdentificationSearchService;
     private PsmSearchService psmSearchService;
+    private MongoProteinIdentificationSearchService mongoProteinIdentificationSearchService;
+    private MongoPsmSearchService mongoPsmSearchService;
     private SpectrumSearchService spectrumSearchService;
 
-    public ViewerControllerImpl(ProteinIdentificationSearchService proteinIdentificationSearchService, PsmSearchService psmSearchService, SpectrumSearchService spectrumSearchService) {
-        this.psmSearchService = psmSearchService;
+    public ViewerControllerImpl(ProteinIdentificationSearchService proteinIdentificationSearchService,
+                                MongoProteinIdentificationSearchService mongoProteinIdentificationSearchService,
+                                PsmSearchService psmSearchService,
+                                MongoPsmSearchService mongoPsmSearchService,
+                                SpectrumSearchService spectrumSearchService) {
         this.proteinIdentificationSearchService = proteinIdentificationSearchService;
+        this.mongoProteinIdentificationSearchService = mongoProteinIdentificationSearchService;
+        this.psmSearchService = psmSearchService;
+        this.mongoPsmSearchService = mongoPsmSearchService;
         this.spectrumSearchService = spectrumSearchService;
     }
 
@@ -47,7 +59,7 @@ public class ViewerControllerImpl {
         logger.debug("Extracted assay accession " + assayAccession + " and protein accession " + proteinAccession);
 
 
-        List<ProteinIdentification> proteins = proteinIdentificationSearchService.findBySubmittedAccessionAndAssayAccession(proteinAccession, assayAccession);
+        List<ProteinIdentification> proteins = proteinIdentificationSearchService.findByAssayAccessionAndAccession(proteinAccession, assayAccession);
         if (proteins == null || proteins.isEmpty()) {
             logger.debug("No protein found!");
             return null;
@@ -57,16 +69,19 @@ public class ViewerControllerImpl {
             throw new InvalidDataException("Invalid protein record! Non-unique result for: " + proteinID);
         }
 
-        ProteinIdentification foundProtein = proteins.iterator().next();
-        if (foundProtein.getSubmittedSequence() == null || foundProtein.getSubmittedSequence().length() < 5) {
-            if (foundProtein.getInferredSequence() == null || foundProtein.getInferredSequence().length() < 5) {
+        ProteinIdentification protein = proteins.iterator().next();
+        String proteinId = protein.getId();
+        MongoProteinIdentification mongoProteinIdentification = mongoProteinIdentificationSearchService.findById(proteinId);
+
+        if (mongoProteinIdentification.getSubmittedSequence() == null || mongoProteinIdentification.getSubmittedSequence().length() < 5) {
+            if (mongoProteinIdentification.getInferredSequence() == null || mongoProteinIdentification.getInferredSequence().length() < 5) {
                 logger.debug("No valid protein record!");
                 throw new InvalidDataException("Invalid protein record! No valid sequence for: " + proteinID);
             }
         }
 
         // create a new WS Protein record
-        Protein resultProtein = ObjectMapper.mapProteinIdentifiedToWSProtein(foundProtein);
+        Protein resultProtein = ObjectMapper.mapProteinIdentifiedToWSProtein(mongoProteinIdentification);
         // set the protein ID to uniquely identify this protein record
         resultProtein.setId(proteinID);
         // ToDo: we don't know the species! Could be provided by search? or remove completely?
@@ -76,9 +91,13 @@ public class ViewerControllerImpl {
         // now add the peptides to the Protein
         // retrieve all PSMs to generate the information needed for a Protein record
         List<Psm> psms = psmSearchService.findByProteinAccessionAndAssayAccession(proteinAccession, assayAccession);
-
+        List<String> psmIDs = new ArrayList<>();
+        for (Psm psm : psms) {
+            psmIDs.add(psm.getId());
+        }
+        List<MongoPsm> mongoPsms = mongoPsmSearchService.findByIdIn(psmIDs);
         // create list of 'peptide' objects collapsing PSMs
-        Collection<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(psms);
+        Collection<PeptideMatch> peptides = mapPsms2WSPeptidesFiltered(mongoPsms);
         // take into account if the peptide sequence matches the protein sequence at the stated location
         adjustPeptideProteinMatches(peptides, resultProtein.getSequence());
         resultProtein.getPeptides().addAll(peptides);
@@ -131,14 +150,18 @@ public class ViewerControllerImpl {
             if (psms == null || psms.isEmpty()) {
                 return null;
             }
-            // and then filter out the peptides we are not interested in
-            List<Psm> filteredPsms = new ArrayList<Psm>();
+            List<String> mognoPsmIds = new ArrayList<>();
             for (Psm psm : psms) {
+                mognoPsmIds.add(psm.getId());
+            }
+            List<MongoPsm> mongoPsms = mongoPsmSearchService.findByIdIn(mognoPsmIds);
+            // and then filter out the peptides we are not interested in
+            List<MongoPsm> filteredPsms = new ArrayList<>();
+            for (MongoPsm psm : mongoPsms) {
                 if (psm.getPeptideSequence().equalsIgnoreCase(psmSequence)) {
                     filteredPsms.add(psm);
                 }
             }
-
             result = ObjectMapper.mapPsms2WSPeptides(filteredPsms, true);
         }
 
@@ -149,38 +172,33 @@ public class ViewerControllerImpl {
     public Spectrum getSpectrumData(String variationId) throws InvalidDataException {
         logger.info("Request for Spectrum for variation " + variationId);
         // retrieve the Spectrum for a particular peptide sequence of a particular protein
-
         String assayAccession = getAssayAccessionFromVariationID(variationId);
         String proteinAccession = getProteinAccessionFromVariationID(variationId);
         String reportedId = getReportedIdFromVariationId(variationId);
         String peptideSequence = getPeptideSequenceFromVariationId(variationId);
-        logger.debug("Variation ID decoded into: assay=" + assayAccession + " protein=" + proteinAccession + " seq=" + peptideSequence + " reportedId=" + reportedId);
-
-        List<Psm> psms = psmSearchService.findByReportedIdAndAssayAccessionAndProteinAccessionAndPeptideSequence(reportedId, assayAccession, proteinAccession, peptideSequence);
-
+        logger.debug("Variation ID decoded into: assay=" + assayAccession + " protein=" + proteinAccession +
+            " seq=" + peptideSequence + " reportedId=" + reportedId);
+        List<Psm> psms = psmSearchService.findByReportedIdAndAssayAccessionAndProteinAccessionAndPeptideSequence(reportedId,
+            assayAccession, proteinAccession, peptideSequence);
         // we assert the we have one and only one PSM for the provided ID
         if (psms == null || psms.size() != 1) {
             throw new InvalidDataException("No unique PSM found for unique identifier: " + variationId);
         }
-
-        Psm psm = psms.get(0);
-        logger.debug("Found PSM=" + psm.getId());
+        String psmId = psms.get(0).getId();
+        MongoPsm mongoPsm = mongoPsmSearchService.findById(psmId);
+        logger.debug("Found PSM=" + mongoPsm.getId());
 
         //For mongodb escaping is not needed
-        uk.ac.ebi.pride.spectrumindex.search.model.Spectrum spectrumSearchResult = spectrumSearchService.findById(psm.getSpectrumId());
+        uk.ac.ebi.pride.spectrumindex.search.model.Spectrum spectrumSearchResult = spectrumSearchService.findById(mongoPsm.getSpectrumId());
 
         // we assert that we have one and only one spectrum for the provided spectrum ID
         if (spectrumSearchResult == null) {
-            throw new InvalidDataException("No spectra data for spectrum with ID: " + psm.getSpectrumId() + " for PSM: " + psm.getId() + " and variant ID: " + variationId);
+            throw new InvalidDataException("No spectra data for spectrum with ID: " + mongoPsm.getSpectrumId() + " for PSM: " + mongoPsm.getId() + " and variant ID: " + variationId);
         }
-
         logger.debug("Found Spectrum=" + spectrumSearchResult);
-
         // convert the spectrum from the index into a spectrum object of the web service
         Spectrum spectrum = ObjectMapper.mapIndexSpectrum2WSSpectrum(spectrumSearchResult);
         spectrum.setId(variationId); // overwrite the spectrum ID to use the ID system of the webapp
-
-
         return spectrum;
     }
 
@@ -250,14 +268,14 @@ public class ViewerControllerImpl {
     // with two major differences:
     // a) it collapses peptides with the same sequence and start position and
     // b) it will remove modifications on C/N-terminal.
-    private static Collection<PeptideMatch> mapPsms2WSPeptidesFiltered(List<Psm> psms) {
+    private static Collection<PeptideMatch> mapPsms2WSPeptidesFiltered(List<MongoPsm> psms) {
         Map<String, PeptideMatch> peptideMatchMap = new HashMap<String, PeptideMatch>();
 
         // we have to combine PSMs to peptides that are unique by their sequence + start position
         // include start position in ID to distinguish peptides with the same sequence,
         // but mapped to different locations on the protein sequence
         PeptideMatch mappedObject;
-        for (Psm psm : psms) {
+        for (MongoPsm psm : psms) {
             String peptideMatchId;
             if (psm.getStartPosition() == null) {
                 peptideMatchId = psm.getPeptideSequence();

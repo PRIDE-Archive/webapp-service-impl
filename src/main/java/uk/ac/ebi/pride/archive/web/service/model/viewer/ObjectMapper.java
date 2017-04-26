@@ -2,10 +2,11 @@ package uk.ac.ebi.pride.archive.web.service.model.viewer;
 
 import uk.ac.ebi.pride.archive.dataprovider.identification.ModificationProvider;
 import uk.ac.ebi.pride.archive.dataprovider.param.CvParamProvider;
-import uk.ac.ebi.pride.proteinidentificationindex.search.model.ProteinIdentification;
-import uk.ac.ebi.pride.psmindex.search.model.Psm;
-import uk.ac.ebi.pridemod.ModReader;
-import uk.ac.ebi.pridemod.model.PTM;
+import uk.ac.ebi.pride.proteinidentificationindex.mongo.search.model.MongoProteinIdentification;
+import uk.ac.ebi.pride.psmindex.mongo.search.model.MongoPsm;
+import uk.ac.ebi.pride.utilities.pridemod.ModReader;
+import uk.ac.ebi.pride.utilities.pridemod.model.PTM;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,34 +21,29 @@ public class ObjectMapper {
     private static final ModReader modReader = ModReader.getInstance();
 
 
-    public static Protein mapProteinIdentifiedToWSProtein(ProteinIdentification foundProtein) {
+    public static Protein mapProteinIdentifiedToWSProtein(MongoProteinIdentification mongoProteinIdentification) {
         Protein resultProtein;
         String sequence;
-
         resultProtein = new Protein();
-        resultProtein.setAccession(foundProtein.getSubmittedAccession());
-
-        if (foundProtein.getSubmittedSequence() != null && foundProtein.getSubmittedSequence().length() > 5) {
-            sequence = foundProtein.getSubmittedSequence();
+        resultProtein.setAccession(mongoProteinIdentification.getSubmittedAccession());
+        if (mongoProteinIdentification.getSubmittedSequence() != null && mongoProteinIdentification.getSubmittedSequence().length() > 5) {
+            sequence = mongoProteinIdentification.getSubmittedSequence();
             resultProtein.setIsInferredSequence(Boolean.FALSE);
         } else {
-            sequence = foundProtein.getInferredSequence();
+            sequence = mongoProteinIdentification.getInferredSequence();
             resultProtein.setIsInferredSequence(Boolean.TRUE);
         }
-
         if (sequence != null && sequence.length() > 5) {
             resultProtein.setSequence(sequence);
         } else {
-            throw new IllegalStateException("No valid protein sequence available for protein: " + foundProtein.getAccession());
+            throw new IllegalStateException("No valid protein sequence available for protein: " + mongoProteinIdentification.getAccession());
         }
-        resultProtein.setDescription(foundProtein.getName());
-
-        for (ModificationProvider mod : foundProtein.getModifications()) {
+        resultProtein.setDescription(mongoProteinIdentification.getName());
+        for (ModificationProvider mod : mongoProteinIdentification.getModifications()) {
             // we ignore any modifications that do not have a main location
             if (mod.getMainPosition() != null) {
                 PTM ptm = modReader.getPTMbyAccession(mod.getAccession());
                 double mass = 0;
-
                 if(ptm!= null){
                     mass = ptm.getMonoDeltaMass();
                 }
@@ -55,14 +51,13 @@ public class ObjectMapper {
                 resultProtein.getModifiedLocations().add(protMod);
             }
         }
-
         return resultProtein;
     }
 
 
-    public static List<Peptide> mapPsms2WSPeptides(List<Psm> psms, boolean assignPsmUniqueId) {
+    public static List<Peptide> mapPsms2WSPeptides(List<MongoPsm> psms, boolean assignPsmUniqueId) {
         List<Peptide> mappedObjects = new ArrayList<Peptide>(psms.size());
-        for (Psm psm : psms) {
+        for (MongoPsm psm : psms) {
             Peptide mappedObject = mapPsm2WSPeptide(psm, assignPsmUniqueId);
             if (psm.getModifications() != null) {
                 mappedObject.setModifiedLocations(mapPsmModifications2WSPeptideModifiedLocations(psm.getModifications()));
@@ -72,7 +67,7 @@ public class ObjectMapper {
         return mappedObjects;
     }
 
-    public static Peptide mapPsm2WSPeptide(Psm psm, boolean assignPsmUniqueId) {
+    public static Peptide mapPsm2WSPeptide(MongoPsm psm, boolean assignPsmUniqueId) {
         if (psm == null) { return null; }
 
         Peptide mappedObject = new Peptide();
