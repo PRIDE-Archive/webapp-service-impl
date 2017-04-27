@@ -53,13 +53,10 @@ public class ViewerControllerImpl {
         // Note: the protein accession is the submitted accession used to identify the protein identification of the respective assay
         // since this is for internal use only, this could potentially be a PRIDE internal id as well...
         logger.info("Protein " + proteinID + " requested...");
-
         String assayAccession = getAssayAccessionFromProteinID(proteinID);
         String proteinAccession = getProteinAccessionFromProteinID(proteinID);
         logger.debug("Extracted assay accession " + assayAccession + " and protein accession " + proteinAccession);
-
-
-        List<ProteinIdentification> proteins = proteinIdentificationSearchService.findByAssayAccessionAndAccession(proteinAccession, assayAccession);
+        List<ProteinIdentification> proteins = proteinIdentificationSearchService.findByAssayAccessionAndAccession(assayAccession, proteinAccession);
         if (proteins == null || proteins.isEmpty()) {
             logger.debug("No protein found!");
             return null;
