@@ -11,7 +11,7 @@
     <groupId>uk.ac.ebi.pride.archive</groupId>
     <artifactId>webapp-service-impl</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.7-SNAPSHOT</version>
+    <version>0.1.7</version>
 
     <!--
          To build the project:
@@ -99,7 +99,7 @@
         <connection>scm:git:https://github.com/PRIDE-Archive/webapp-service-impl.git</connection>
         <developerConnection>scm:git:https://github.com/PRIDE-Archive/webapp-service-impl.git</developerConnection>
         <url>scm:git:https://github.com/PRIDE-Archive/webapp-service-impl.git</url>
-        <tag>HEAD</tag>
+        <tag>webapp-service-impl-0.1.7</tag>
     </scm>
 
 </project>
